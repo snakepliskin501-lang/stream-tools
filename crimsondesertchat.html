@@ -149,7 +149,10 @@ function saveApiKey() {
 document.getElementById('api-key-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
 
 // Hide overlay if key already saved
-if (getApiKey()) document.getElementById('api-overlay').style.display = 'none';
+const _savedKey = localStorage.getItem('cd_api_key');
+if (_savedKey && _savedKey.startsWith('sk-ant-')) {
+  document.getElementById('api-overlay').style.display = 'none';
+}
 
 // ── SETUP ──
 const messagesEl = document.getElementById('messages');
