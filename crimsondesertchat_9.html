@@ -328,18 +328,12 @@ async function handleGameEvent(type, n) {
   const cfg = eventConfig[type];
   if (!cfg) return;
   addEventAnnounce(cfg.label(n), cfg.cls);
-
+  // Use pre-written reactions for game events to save API calls
   const shuffled = [...users].sort(()=>Math.random()-0.5).slice(0, randInt(3,5));
   for (let i = 0; i < shuffled.length; i++) {
     const u = shuffled[i];
-    await new Promise(r => setTimeout(r, randInt(400,1100)*(i+1)));
-    const t = showTyping(u.name, u.color);
-    await new Promise(r => setTimeout(r, randInt(900,2000)));
-    removeTyping(t);
-    try {
-      const reply = await callAI(cfg.prompt(n), `React as viewer ${u.name}:`);
-      addMsg(u, reply, false, 'reply-msg');
-    } catch(e) { addMsg(u, rand(chatLines), false, 'reply-msg'); }
+    await new Promise(r => setTimeout(r, randInt(600,1400)*(i+1)));
+    addMsg(u, rand(chatLines), false, 'reply-msg');
   }
 }
 
