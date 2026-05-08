@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stream Controls</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Orbitron:wght@700;900&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    background:#0a0402;
+    font-family:'Rajdhani',sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:20px 16px 40px;
+    color:#fff;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='16'%3E%3Cellipse cx='9' cy='4' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3Cellipse cx='0' cy='12' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3Cellipse cx='18' cy='12' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3C/svg%3E");
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .container { position:relative; z-index:1; width:100%; max-width:420px; }
+
+  h1 {
+    font-family:'Orbitron',monospace;
+    font-size:16px; font-weight:900;
+    color:#ff6622; letter-spacing:3px;
+    text-transform:uppercase;
+    text-shadow:0 0 20px rgba(255,100,30,0.5);
+    text-align:center; margin-bottom:4px;
+  }
+
+  .subtitle {
+    font-size:11px; color:rgba(255,180,100,0.4);
+    letter-spacing:2px; text-transform:uppercase;
+    text-align:center; margin-bottom:20px;
+  }
+
+  /* STATS */
+  .stats {
+    display:grid; grid-template-columns:1fr 1fr 1fr 1fr;
+    gap:8px; margin-bottom:20px;
+  }
+
+  .stat {
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:8px; padding:10px 6px;
+    text-align:center;
+  }
+
+  .stat-icon { font-size:18px; display:block; margin-bottom:2px; }
+  .stat-num  { font-family:'Orbitron',monospace; font-size:24px; font-weight:700; display:block; line-height:1; }
+  .stat-lbl  { font-size:9px; text-transform:uppercase; letter-spacing:1px; opacity:0.4; margin-top:2px; display:block; }
+
+  .stat-death   .stat-num { color:#ff4444; }
+  .stat-kill    .stat-num { color:#ff8800; }
+  .stat-mission .stat-num { color:#44ff88; }
+  .stat-boss    .stat-num { color:#bb88ff; }
+
+  /* BUTTONS */
+  .buttons { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
+
+  .evt-btn {
+    border-radius:12px; border:2px solid;
+    padding:22px 12px 18px;
+    cursor:pointer; font-family:'Orbitron',monospace;
+    font-size:16px; font-weight:700;
+    letter-spacing:1px; text-transform:uppercase;
+    display:flex; flex-direction:column;
+    align-items:center; gap:8px;
+    transition:transform 0.1s, filter 0.1s;
+    -webkit-user-select:none; user-select:none;
+    touch-action:manipulation;
+    position:relative;
+  }
+
+  .evt-btn:active { transform:scale(0.93); filter:brightness(1.3); }
+  .evt-btn.flash  { animation:btnflash 0.3s ease; }
+  @keyframes btnflash { 0%{filter:brightness(1)} 50%{filter:brightness(2.5)} 100%{filter:brightness(1)} }
+
+  .evt-btn .emoji { font-size:36px; line-height:1; }
+  .evt-btn .label { font-size:15px; }
+  .evt-btn .key   { position:absolute; top:8px; right:10px; font-size:9px; opacity:0.4; font-family:'Rajdhani',sans-serif; }
+
+  .btn-death   { background:rgba(160,20,20,0.35); border-color:rgba(255,60,60,0.6);   color:#ff7777; }
+  .btn-kill    { background:rgba(180,80,0,0.35);  border-color:rgba(255,140,30,0.6);  color:#ffaa44; }
+  .btn-mission { background:rgba(0,130,55,0.35);  border-color:rgba(30,220,100,0.6);  color:#55ffaa; }
+  .btn-boss    { background:rgba(110,0,150,0.35); border-color:rgba(180,60,255,0.6);  color:#cc88ff; }
+
+  /* STATUS */
+  #status {
+    text-align:center; font-size:12px;
+    color:rgba(255,180,100,0.4); letter-spacing:0.5px;
+    min-height:20px; margin-bottom:20px;
+    transition:color 0.3s;
+  }
+  #status.ok  { color:rgba(100,255,150,0.8); }
+  #status.err { color:rgba(255,100,100,0.8); }
+
+  /* DIVIDER */
+  .divider { height:1px; background:rgba(180,60,20,0.2); margin:4px 0 20px; }
+
+  /* RESET */
+  #reset-btn {
+    width:100%; background:transparent;
+    border:1px solid rgba(255,255,255,0.1);
+    color:rgba(255,255,255,0.3); border-radius:8px;
+    padding:12px; font-size:11px;
+    font-family:'Orbitron',monospace;
+    letter-spacing:1px; text-transform:uppercase;
+    cursor:pointer; transition:all 0.2s;
+  }
+  #reset-btn:active { border-color:rgba(255,100,50,0.5); color:rgba(255,130,80,0.8); }
+
+  /* CONNECTION STATUS */
+  .conn-bar {
+    display:flex; align-items:center; justify-content:center;
+    gap:8px; margin-bottom:16px;
+    font-size:10px; color:rgba(255,180,100,0.4);
+    letter-spacing:1px; text-transform:uppercase;
+  }
+  .conn-dot {
+    width:7px; height:7px; border-radius:50%;
+    background:#ff4444; animation:none;
+  }
+  .conn-dot.connected {
+    background:#44ff88;
+    animation:connpulse 2s ease-in-out infinite;
+  }
+  @keyframes connpulse {
+    0%,100%{ box-shadow:0 0 0 0 rgba(68,255,136,0.5); }
+    50%    { box-shadow:0 0 0 4px rgba(68,255,136,0); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>⚔ Controls</h1>
+  <p class="subtitle">Crimson Desert — Stream Panel</p>
+
+  <div class="conn-bar">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span id="conn-text">Waiting for chat...</span>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat stat-death">
+      <span class="stat-icon">💀</span>
+      <span class="stat-num" id="s-death">0</span>
+      <span class="stat-lbl">Deaths</span>
+    </div>
+    <div class="stat stat-kill">
+      <span class="stat-icon">⚔️</span>
+      <span class="stat-num" id="s-kill">0</span>
+      <span class="stat-lbl">Kills</span>
+    </div>
+    <div class="stat stat-mission">
+      <span class="stat-icon">✅</span>
+      <span class="stat-num" id="s-mission">0</span>
+      <span class="stat-lbl">Missions</span>
+    </div>
+    <div class="stat stat-boss">
+      <span class="stat-icon">👑</span>
+      <span class="stat-num" id="s-boss">0</span>
+      <span class="stat-lbl">Bosses</span>
+    </div>
+  </div>
+
+  <!-- Buttons -->
+  <div class="buttons">
+    <button class="evt-btn btn-death" id="btn-death" onclick="fire('death')">
+      <span class="key">F1</span>
+      <span class="emoji">💀</span>
+      <span class="label">I Died</span>
+    </button>
+    <button class="evt-btn btn-kill" id="btn-kill" onclick="fire('kill')">
+      <span class="key">F2</span>
+      <span class="emoji">⚔️</span>
+      <span class="label">Got a Kill</span>
+    </button>
+    <button class="evt-btn btn-mission" id="btn-mission" onclick="fire('mission')">
+      <span class="key">F3</span>
+      <span class="emoji">✅</span>
+      <span class="label">Mission Done</span>
+    </button>
+    <button class="evt-btn btn-boss" id="btn-boss" onclick="fire('boss')">
+      <span class="key">F4</span>
+      <span class="emoji">👑</span>
+      <span class="label">Boss Killed</span>
+    </button>
+  </div>
+
+  <div id="status">Ready — tap a button to trigger chat reaction</div>
+
+  <div class="divider"></div>
+  <button id="reset-btn" onclick="resetStats()">Reset All Counters</button>
+
+</div>
+
+<script>
+const stats = { death:0, kill:0, mission:0, boss:0 };
+let busy = false;
+
+const statEls = {
+  death:   document.getElementById('s-death'),
+  kill:    document.getElementById('s-kill'),
+  mission: document.getElementById('s-mission'),
+  boss:    document.getElementById('s-boss'),
+};
+
+const btnEls = {
+  death:   document.getElementById('btn-death'),
+  kill:    document.getElementById('btn-kill'),
+  mission: document.getElementById('btn-mission'),
+  boss:    document.getElementById('btn-boss'),
+};
+
+const statusEl  = document.getElementById('status');
+const connDot   = document.getElementById('conn-dot');
+const connText  = document.getElementById('conn-text');
+
+// Try BroadcastChannel first, fall back to localStorage
+let bc = null;
+try {
+  bc = new BroadcastChannel('cd_event_channel');
+  connDot.classList.add('connected');
+  connText.textContent = 'Connected via BroadcastChannel';
+} catch(e) {
+  connText.textContent = 'Using localStorage fallback';
+}
+
+function setStatus(msg, ok) {
+  statusEl.textContent = msg;
+  statusEl.className = ok ? 'ok' : 'err';
+  setTimeout(() => { statusEl.textContent = 'Ready'; statusEl.className = ''; }, 2000);
+}
+
+function setBusy(state) {
+  busy = state;
+  Object.values(btnEls).forEach(b => b.disabled = state);
+}
+
+function fire(type) {
+  if (busy) return;
+  stats[type]++;
+  const n = stats[type];
+  statEls[type].textContent = n;
+
+  // Flash button
+  btnEls[type].classList.remove('flash');
+  void btnEls[type].offsetWidth;
+  btnEls[type].classList.add('flash');
+
+  // Send event
+  const payload = JSON.stringify({ type, n, ts: Date.now() });
+  if (bc) {
+    bc.postMessage({ type, n });
+  }
+  // Always also write to localStorage as fallback
+  localStorage.setItem('cd_event', payload);
+
+  const labels = { death:'💀 Death sent!', kill:'⚔️ Kill sent!', mission:'✅ Mission sent!', boss:'👑 Boss sent!' };
+  setStatus(labels[type], true);
+
+  // Brief cooldown to prevent double-tap
+  setBusy(true);
+  setTimeout(() => setBusy(false), 1500);
+}
+
+function resetStats() {
+  if (!confirm('Reset all counters?')) return;
+  Object.keys(stats).forEach(k => { stats[k] = 0; statEls[k].textContent = '0'; });
+  setStatus('Counters reset', true);
+}
+
+// Keyboard hotkeys (when used on PC)
+document.addEventListener('keydown', function(e) {
+  if (busy) return;
+  switch(e.key) {
+    case 'F1': e.preventDefault(); fire('death');   break;
+    case 'F2': e.preventDefault(); fire('kill');    break;
+    case 'F3': e.preventDefault(); fire('mission'); break;
+    case 'F4': e.preventDefault(); fire('boss');    break;
+  }
+});
+</script>
+</body>
+</html>
