@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Nest — Live Chat</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    font-family: 'Rajdhani', sans-serif;
+    overflow: hidden;
+    width: 340px;
+    height: 100vh;
+  }
+
+  #chat-wrapper {
+    width: 340px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #080f09;
+    position: relative;
+    border-right: 1px solid rgba(0,200,60,0.3);
+  }
+
+  /* Scale texture overlay via SVG background */
+  #chat-wrapper::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='16'%3E%3Cellipse cx='9' cy='4' rx='8' ry='5' fill='none' stroke='rgba(0,200,60,0.1)' stroke-width='0.7'/%3E%3Cellipse cx='0' cy='12' rx='8' ry='5' fill='none' stroke='rgba(0,200,60,0.1)' stroke-width='0.7'/%3E%3Cellipse cx='18' cy='12' rx='8' ry='5' fill='none' stroke='rgba(0,200,60,0.1)' stroke-width='0.7'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  #chat-header {
+    position: relative;
+    z-index: 2;
+    padding: 0 14px;
+    height: 44px;
+    background: #080f09;
+    border-bottom: 1px solid #1a4d20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Corner bracket accents on header */
+  #chat-header::before,
+  #chat-header::after {
+    content: '';
+    position: absolute;
+    width: 10px; height: 10px;
+    border-color: #00ff55;
+    border-style: solid;
+    opacity: 0.7;
+  }
+  #chat-header::before { top: 4px; left: 4px; border-width: 1.5px 0 0 1.5px; }
+  #chat-header::after  { top: 4px; right: 4px; border-width: 1.5px 1.5px 0 0; }
+
+  .eye-dot {
+    width: 10px; height: 6px;
+    background: #00ff55;
+    border-radius: 50%;
+    box-shadow: 0 0 8px 2px #00ff55, 0 0 16px 4px rgba(0,255,80,0.4);
+    animation: eye-pulse 2.6s ease-in-out infinite;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .eye-dot::after {
+    content: '';
+    position: absolute;
+    width: 3px; height: 5px;
+    background: #000;
+    border-radius: 50%;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+  }
+  @keyframes eye-pulse {
+    0%,100% { box-shadow: 0 0 8px 2px #00ff55, 0 0 16px 4px rgba(0,255,80,0.4); }
+    50%      { box-shadow: 0 0 14px 5px #00ff55, 0 0 28px 8px rgba(0,255,80,0.6); }
+  }
+
+  #header-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #00cc44;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    text-shadow: 0 0 8px rgba(0,255,80,0.5);
+    animation: flicker 6s ease-in-out infinite;
+  }
+  @keyframes flicker {
+    0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.3} 93%{opacity:1} 95%{opacity:0.5} 96%{opacity:1}
+  }
+
+  #viewer-count {
+    margin-left: auto;
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: #2a6a32;
+    letter-spacing: 1px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  #viewer-count span { color: #00ff55; font-weight: 700; }
+
+  /* ── MESSAGES ── */
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    scroll-behavior: smooth;
+    position: relative;
+    z-index: 1;
+  }
+
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-track { background: transparent; }
+  #messages::-webkit-scrollbar-thumb { background: rgba(0,200,60,0.3); border-radius: 2px; }
+
+  .msg {
+    display: flex; align-items: baseline; gap: 5px;
+    padding: 3px 6px; border-radius: 2px;
+    animation: fadeIn 0.25s ease;
+    line-height: 1.4; flex-wrap: wrap;
+  }
+
+  @keyframes fadeIn {
+    from { opacity:0; transform:translateY(5px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  .msg:hover { background: rgba(0,255,80,0.04); }
+
+  .badge {
+    font-family: 'Orbitron', monospace;
+    font-size: 8px; padding: 1px 5px; border-radius: 2px;
+    font-weight: 700; flex-shrink: 0; letter-spacing: 0.5px;
+  }
+  .badge-mod { background:rgba(0,180,80,0.2);  color:#00ff55; border:1px solid rgba(0,200,60,0.4); }
+  .badge-sub { background:rgba(0,120,60,0.2);  color:#44ffaa; border:1px solid rgba(0,160,80,0.3); }
+  .badge-vip { background:rgba(0,200,80,0.15); color:#88ffcc; border:1px solid rgba(0,200,80,0.3); }
+  .badge-you { background:rgba(0,255,80,0.2);  color:#00ff55; border:1px solid rgba(0,255,80,0.5); }
+
+  .username {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; font-weight: 700;
+    flex-shrink: 0; cursor: default;
+    letter-spacing: 0.5px;
+  }
+  .colon { font-size:12px; color:rgba(0,200,60,0.3); flex-shrink:0; }
+  .text  { font-size:13px; color:rgba(180,240,190,0.88); word-break:break-word; flex:1; min-width:0; font-family:'Rajdhani',sans-serif; font-weight:600; }
+
+  .highlight {
+    background: rgba(0,255,80,0.07);
+    border-left: 2px solid rgba(0,255,80,0.6);
+  }
+
+  .reply-msg {
+    background: rgba(0,180,60,0.08);
+    border-left: 2px solid rgba(0,200,60,0.4);
+  }
+
+  .system-msg {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 10px; color: rgba(0,200,60,0.45);
+    text-align: center; padding: 4px 0;
+    font-style: italic; letter-spacing: 0.5px;
+  }
+
+  .raid-msg {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; color: #00ff55; text-align: center;
+    padding: 6px 8px;
+    background: rgba(0,180,60,0.12);
+    border: 1px solid rgba(0,200,60,0.35);
+    border-radius: 3px; margin: 4px 0;
+    animation: fadeIn 0.4s ease;
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px rgba(0,255,80,0.5);
+  }
+
+  .event-announce {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px; font-weight: 700;
+    text-align: center; padding: 5px 8px;
+    border-radius: 3px; margin: 3px 0;
+    animation: fadeIn 0.4s ease;
+    letter-spacing: 1px;
+  }
+  .event-death   { background:rgba(160,20,20,0.2); border:1px solid rgba(255,50,50,0.3);   color:#ff8888; }
+  .event-kill    { background:rgba(0,160,60,0.2);  border:1px solid rgba(0,255,80,0.4);    color:#00ff88; text-shadow:0 0 8px rgba(0,255,80,0.5); }
+  .event-mission { background:rgba(0,120,60,0.2);  border:1px solid rgba(0,200,100,0.4);   color:#44ffaa; }
+  .event-boss    { background:rgba(0,80,40,0.25);  border:1px solid rgba(0,255,120,0.5);   color:#88ffcc; text-shadow:0 0 10px rgba(0,255,100,0.6); }
+
+  /* ── TYPING ── */
+  .typing-indicator {
+    display: flex; align-items: center; gap: 6px;
+    padding: 3px 8px; animation: fadeIn 0.2s ease;
+  }
+  .typing-dots { display: flex; gap: 3px; align-items: center; }
+  .typing-dots span {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: rgba(0,200,60,0.6);
+    animation: bounce 1.2s infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,80%,100% { transform:translateY(0); opacity:0.4; }
+    40%          { transform:translateY(-4px); opacity:1; }
+  }
+  .typing-name  { font-family:'Orbitron',monospace; font-size:9px; font-weight:700; }
+  .typing-label { font-size:10px; color:rgba(0,200,60,0.4); font-style:italic; font-family:'Rajdhani',sans-serif; }
+
+  /* ── SCROLL BTN ── */
+  #scroll-btn {
+    position: absolute; bottom: 56px; right: 10px;
+    background: rgba(0,120,40,0.9);
+    color: #00ff55;
+    border: 1px solid rgba(0,200,60,0.5);
+    border-radius: 10px;
+    padding: 3px 10px; font-size:10px;
+    cursor:pointer;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700; letter-spacing: 1px;
+    display:none; z-index:10;
+  }
+
+  /* ── INPUT AREA ── */
+  #chat-input-area {
+    padding: 8px 10px;
+    background: #080f09;
+    border-top: 1px solid #1a4d20;
+    display: flex; gap:6px; flex-shrink:0;
+    position: relative; z-index: 2;
+  }
+
+  /* bottom corner brackets */
+  #chat-input-area::before,
+  #chat-input-area::after {
+    content: '';
+    position: absolute;
+    width: 8px; height: 8px;
+    border-color: #00ff55;
+    border-style: solid;
+    opacity: 0.5;
+    bottom: 6px;
+  }
+  #chat-input-area::before { left: 4px;  border-width: 0 0 1.5px 1.5px; }
+  #chat-input-area::after  { right: 4px; border-width: 0 1.5px 1.5px 0; }
+
+  #chat-input {
+    flex:1;
+    background: rgba(0,255,80,0.04);
+    border: 1px solid rgba(0,200,60,0.25);
+    border-radius:2px; padding:6px 10px;
+    font-size:12px; color:#c8f0d4; outline:none;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  #chat-input::placeholder { color:rgba(0,180,60,0.3); }
+  #chat-input:focus { border-color:rgba(0,255,80,0.5); background:rgba(0,255,80,0.07); }
+  #chat-input:disabled { opacity:0.4; cursor:not-allowed; }
+
+  #send-btn {
+    background: rgba(0,140,50,0.5);
+    border: 1px solid rgba(0,200,60,0.5);
+    color: #00ff55;
+    border-radius: 2px;
+    padding: 6px 12px;
+    font-family: 'Orbitron', monospace;
+    font-size: 9px; font-weight: 700;
+    letter-spacing: 1px;
+    cursor:pointer; transition: all 0.15s;
+    text-shadow: 0 0 8px rgba(0,255,80,0.5);
+  }
+  #send-btn:hover  { background:rgba(0,180,60,0.6); box-shadow:0 0 10px rgba(0,255,80,0.2); }
+  #send-btn:active { transform:scale(0.97); }
+  #send-btn:disabled { opacity:0.3; cursor:not-allowed; }
+
+  /* Smoke rising from bottom */
+  .smoke { position:absolute; bottom:52px; left:0; right:0; height:60px; pointer-events:none; overflow:hidden; z-index:1; }
+  .smoke-particle {
+    position:absolute; border-radius:50%;
+    background:radial-gradient(circle, rgba(0,255,80,0.1) 0%, transparent 70%);
+    animation:drift linear infinite; opacity:0;
+  }
+  @keyframes drift {
+    0%   { transform:translateY(0) scale(1);    opacity:0; }
+    15%  { opacity:0.5; }
+    85%  { opacity:0.1; }
+    100% { transform:translateY(-60px) scale(1.8); opacity:0; }
+  }
+
+  /* Pulse ring */
+  .pulse-line {
+    position:absolute; left:0; right:0;
+    height:1px; background:rgba(0,255,80,0);
+    animation:line-pulse 4s ease-in-out infinite;
+    pointer-events:none; z-index:2;
+  }
+  .pulse-line.top    { top:44px; }
+  .pulse-line.bottom { bottom:52px; }
+  @keyframes line-pulse {
+    0%,100%{ background:rgba(0,255,80,0); }
+    50%    { background:rgba(0,255,80,0.4); box-shadow:0 0 6px rgba(0,255,80,0.3); }
+  }
+</style>
+</head>
+<body>
+
+<div id="chat-wrapper">
+
+  <!-- Pulse lines -->
+  <div class="pulse-line top"></div>
+  <div class="pulse-line bottom" style="animation-delay:2s"></div>
+
+  <!-- Smoke -->
+  <div class="smoke" id="smoke"></div>
+
+  <!-- Header -->
+  <div id="chat-header">
+    <div class="eye-dot"></div>
+    <div id="header-title">The Nest // Live</div>
+    <div id="viewer-count">👁 <span id="vcount">1,247</span></div>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div class="system-msg">// connection established — welcome to the nest //</div>
+  </div>
+
+  <button id="scroll-btn" onclick="scrollToBottom()">&#8595; NEW</button>
+
+  <!-- Input -->
+  <div id="chat-input-area">
+    <input id="chat-input" type="text" placeholder="transmit message..." maxlength="200" />
+    <button id="send-btn" onclick="sendUserMsg()">SEND</button>
+  </div>
+
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const inputEl    = document.getElementById('chat-input');
+const scrollBtn  = document.getElementById('scroll-btn');
+const sendBtn    = document.getElementById('send-btn');
+const vcountEl   = document.getElementById('vcount');
+
+let autoScroll  = true;
+let viewerCount = 1247;
+let isReplying  = false;
+
+const stats = { death: 0, kill: 0, mission: 0, boss: 0 };
+const STREAMER_NAME = 'Streamer';
+
+const users = [
+  { name:'SandWraith_',     color:'#44ffaa', badge:null  },
+  { name:'CrimsonBlade99',  color:'#00ff88', badge:'sub' },
+  { name:'DesertPhoenix',   color:'#88ffcc', badge:null  },
+  { name:'VoidWalkerX',     color:'#00ffaa', badge:'sub' },
+  { name:'NightHunterGG',   color:'#66ff99', badge:null  },
+  { name:'BloodMoonRaider', color:'#00ff55', badge:'mod' },
+  { name:'SilverStorm77',   color:'#aaffdd', badge:null  },
+  { name:'DragonSoul_',     color:'#33ff88', badge:'vip' },
+  { name:'EchoOfAshes',     color:'#77ffbb', badge:'sub' },
+  { name:'IronVeil_',       color:'#55ffcc', badge:null  },
+  { name:'StarlightAce',    color:'#99ffdd', badge:'sub' },
+  { name:'ThunderRex',      color:'#00ff77', badge:null  },
+  { name:'ObsidianKnight',  color:'#44ffbb', badge:'mod' },
+  { name:'CrimsonEcho_',    color:'#22ff66', badge:null  },
+  { name:'ArcaneWolf',      color:'#88ffee', badge:'sub' },
+  { name:'DawnBreaker_',    color:'#66ffaa', badge:null  },
+  { name:'ShadowFang99',    color:'#aaffcc', badge:null  },
+  { name:'StormCaller_',    color:'#33ffaa', badge:'vip' },
+  { name:'EmberKnight_',    color:'#55ff99', badge:null  },
+  { name:'RuneSeeker',      color:'#77ffdd', badge:'sub' },
+  { name:'GrimReaper_GG',   color:'#00ffcc', badge:null  },
+  { name:'CinderWraith',    color:'#44ff99', badge:'sub' },
+  { name:'ScarletHunter',   color:'#99ffbb', badge:'vip' },
+];
+
+const chatLines = [
+  'LETS GOOOOO 🔥🔥🔥','this game looks insane',
+  'can we get an F in chat','graphics are unreal omg',
+  'bro that combo was clean af','first time watching, this is sick',
+  'W streamer W streamer','this is the best game this year no cap',
+  'HYPE HYPE HYPE','that boss fight was NUTS','clip that!!','LFG!!!!! 🔥',
+  'never seen combat this fluid','subbed, this is too good','gg ez',
+  'the lore in this game is so deep','KEKW',
+  'the desert biome looks gorgeous','that sword skill combo omg',
+  'rip inventory management 😂','game of the year contender fr',
+  'the world building is incredible','that mounted combat is so smooth',
+  'the character design is top tier','what class are you running?',
+  'finally a game worth watching',
+  'this is giving me Elden Ring vibes but better',
+  'that parry timing was CLEAN','POG POG POG',
+  'the skill tree looks insane','please do a build guide after this',
+  'that dodge animation is smooth af','OMEGALUL',
+  'this combat is chef kiss 🤌','we eating good with this game fr',
+];
+
+const emotes   = ['🔥','💀','⚔️','🛡️','👑','🏆','💥','✨','😂','🤌','👀','🎮'];
+const subNames = ['AzureDawn_','RedSandX','MirrorBlade','ChaosRunner','NeonWarden'];
+
+const eventConfig = {
+  death:   { cls:'event-death',   label: n=>`💀 ELIMINATED — #${n}`,              prompt: n=>`You are a Twitch viewer watching a Crimson Desert stream. Streamer died for the ${n}th time. Short funny/savage reaction, under 15 words, max 1 emoji, casual Twitch tone. Never mention AI.` },
+  kill:    { cls:'event-kill',    label: n=>`⚔️ TARGET DOWN — ${n} KILLS`,         prompt: n=>`Twitch viewer, Crimson Desert stream. Streamer got kill #${n}. Short hype reaction, under 15 words, max 1 emoji. Never mention AI.` },
+  mission: { cls:'event-mission', label: n=>`✅ OBJECTIVE COMPLETE — #${n}`,       prompt: n=>`Twitch viewer, Crimson Desert stream. Streamer completed mission #${n}. Short hyped reaction, under 15 words, max 1 emoji. Never mention AI.` },
+  boss:    { cls:'event-boss',    label: n=>`👑 BOSS NEUTRALISED — #${n} DOWN`,    prompt: n=>`Twitch viewer, Crimson Desert stream. Streamer killed boss #${n}. Extremely hyped reaction, under 15 words, max 1 emoji. Never mention AI.` },
+};
+
+function rand(arr)         { return arr[Math.floor(Math.random()*arr.length)]; }
+function randInt(min, max) { return Math.floor(Math.random()*(max-min+1))+min; }
+function escHtml(s)        { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function addMsg(user, text, isHighlight, extraClass) {
+  const div = document.createElement('div');
+  let cls = 'msg';
+  if (isHighlight) cls += ' highlight';
+  if (extraClass)  cls += ' ' + extraClass;
+  div.className = cls;
+  let inner = '';
+  if (user.badge === 'mod') inner += '<span class="badge badge-mod">MOD</span>';
+  else if (user.badge === 'sub') inner += '<span class="badge badge-sub">SUB</span>';
+  else if (user.badge === 'vip') inner += '<span class="badge badge-vip">VIP</span>';
+  else if (user.badge === 'you') inner += '<span class="badge badge-you">YOU</span>';
+  inner += '<span class="username" style="color:' + user.color + ';text-shadow:0 0 8px ' + user.color + '44">' + escHtml(user.name) + '</span>';
+  inner += '<span class="colon">:</span>';
+  inner += '<span class="text">' + escHtml(text) + '</span>';
+  div.innerHTML = inner;
+  messagesEl.appendChild(div);
+  trimMessages(); doScroll();
+  return div;
+}
+
+function addSystem(text, isRaid) {
+  const div = document.createElement('div');
+  div.className = isRaid ? 'raid-msg' : 'system-msg';
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  trimMessages(); doScroll();
+}
+
+function addEventAnnounce(text, cls) {
+  const div = document.createElement('div');
+  div.className = 'event-announce ' + cls;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  trimMessages(); doScroll();
+}
+
+function showTypingIndicator(username, color) {
+  const div = document.createElement('div');
+  div.className = 'typing-indicator';
+  div.innerHTML =
+    '<span class="typing-name" style="color:' + color + ';text-shadow:0 0 6px ' + color + '66">' + escHtml(username) + '</span>' +
+    '<div class="typing-dots"><span></span><span></span><span></span></div>' +
+    '<span class="typing-label">transmitting...</span>';
+  messagesEl.appendChild(div);
+  doScroll();
+  return div;
+}
+
+function removeTypingIndicator(div) { if (div && div.parentNode) div.parentNode.removeChild(div); }
+function trimMessages() { while (messagesEl.children.length > 250) messagesEl.removeChild(messagesEl.children[0]); }
+
+function doScroll() {
+  if (autoScroll) messagesEl.scrollTop = messagesEl.scrollHeight;
+  else scrollBtn.style.display = 'block';
+}
+
+function scrollToBottom() {
+  autoScroll = true;
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  scrollBtn.style.display = 'none';
+}
+
+messagesEl.addEventListener('scroll', function() {
+  const atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 50;
+  if (atBottom) { autoScroll = true; scrollBtn.style.display = 'none'; }
+  else autoScroll = false;
+});
+
+// ── LISTEN FOR EVENTS FROM CONTROL PANEL VIA localStorage ──
+window.addEventListener('storage', function(e) {
+  if (e.key === 'cd_event' && e.newValue) {
+    try {
+      const { type, n } = JSON.parse(e.newValue);
+      handleGameEvent(type, n);
+    } catch(err) {}
+  }
+  // Voice listener
+  if (e.key === 'cd_voice' && e.newValue) {
+    try {
+      const { text, showText, ts } = JSON.parse(e.newValue);
+      if (lastVoiceTs === ts) return;
+      lastVoiceTs = ts;
+      if (showText) addMsg({ name: STREAMER_NAME, color: '#00ff55', badge: 'you' }, text, true);
+      if (!isReplying) triggerAIReplies(text);
+    } catch(err) {}
+  }
+});
+
+// ── VOICE LISTENER (BroadcastChannel) ──
+try {
+  const voiceChannel = new BroadcastChannel('cd_voice_channel');
+  voiceChannel.onmessage = function(e) {
+    const { text, showText } = e.data;
+    if (!text) return;
+    if (showText) addMsg({ name: STREAMER_NAME, color: '#00ff55', badge: 'you' }, text, true);
+    isReplying = false;
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    triggerAIReplies(text);
+  };
+} catch(e) {
+  console.warn('BroadcastChannel not available:', e);
+}
+
+async function handleGameEvent(type, n) {
+  if (isReplying) return;
+  const cfg = eventConfig[type];
+  if (!cfg) return;
+  addEventAnnounce(cfg.label(n), cfg.cls);
+  isReplying = true;
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+
+  const shuffled = [...users].sort(() => Math.random() - 0.5);
+  const replyUsers = shuffled.slice(0, randInt(3, 5));
+
+  for (let i = 0; i < replyUsers.length; i++) {
+    const u = replyUsers[i];
+    await new Promise(r => setTimeout(r, randInt(400, 1100) * (i+1)));
+    const typingDiv = showTypingIndicator(u.name, u.color);
+    await new Promise(r => setTimeout(r, randInt(900, 2000)));
+    removeTypingIndicator(typingDiv);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 60,
+          system: cfg.prompt(n),
+          messages: [{ role:'user', content:'React as viewer ' + u.name + ':' }]
+        })
+      });
+      const data = await res.json();
+      const txt = data.content?.[0]?.text?.trim().replace(/^["']|["']$/g,'') ?? rand(chatLines);
+      addMsg(u, txt, false, 'reply-msg');
+    } catch(e) { addMsg(u, rand(chatLines), false, 'reply-msg'); }
+  }
+
+  isReplying = false;
+  inputEl.disabled = false;
+  sendBtn.disabled = false;
+}
+
+async function triggerAIReplies(streamerMsg) {
+  isReplying = true;
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+
+  const shuffled = [...users].sort(() => Math.random() - 0.5);
+  const replyUsers = shuffled.slice(0, randInt(2, 4));
+
+  const systemPrompt = `You are a Twitch live chat viewer watching a Crimson Desert stream. The streamer just sent a message. Reply authentically. Rules: under 15 words, casual Twitch tone, max 1 emoji, no hashtags, react directly to what they said. Never mention being an AI.`;
+
+  for (let i = 0; i < replyUsers.length; i++) {
+    const u = replyUsers[i];
+    await new Promise(r => setTimeout(r, randInt(800, 2200) * (i+1)));
+    const typingDiv = showTypingIndicator(u.name, u.color);
+    await new Promise(r => setTimeout(r, randInt(1200, 2500)));
+    removeTypingIndicator(typingDiv);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 60,
+          system: systemPrompt,
+          messages: [{ role:'user', content:'Streamer said: "' + streamerMsg + '". Reply as viewer ' + u.name + ':' }]
+        })
+      });
+      const data = await res.json();
+      const txt = data.content?.[0]?.text?.trim().replace(/^["']|["']$/g,'') ?? rand(chatLines);
+      addMsg(u, txt, false, 'reply-msg');
+    } catch(e) { addMsg(u, rand(chatLines), false, 'reply-msg'); }
+  }
+
+  isReplying = false;
+  inputEl.disabled = false;
+  sendBtn.disabled = false;
+  inputEl.focus();
+}
+
+function sendUserMsg() {
+  const val = inputEl.value.trim();
+  if (!val || isReplying) return;
+  addMsg({ name: STREAMER_NAME, color: '#00ff55', badge: 'you' }, val, true);
+  inputEl.value = '';
+  triggerAIReplies(val);
+}
+
+inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') sendUserMsg(); });
+
+// Smoke particles
+const smokeEl = document.getElementById('smoke');
+['8%','22%','38%','54%','70%','86%'].forEach(x => {
+  const d = document.createElement('div');
+  d.className = 'smoke-particle';
+  const size = 30 + Math.random() * 50;
+  d.style.cssText = `left:${x};bottom:0;width:${size}px;height:${size}px;animation-duration:${3+Math.random()*3}s;animation-delay:${Math.random()*5}s;`;
+  smokeEl.appendChild(d);
+});
+
+// ── ALERT STYLES (Nest theme) ──
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+  .alert-msg {
+    font-family:'Orbitron',monospace; font-size:10px; text-align:center;
+    padding:5px 10px; border-radius:3px; margin:4px 0;
+    animation:fadeIn 0.4s ease; font-weight:700; letter-spacing:0.8px;
+  }
+  .alert-sub    { background:rgba(0,100,50,0.25);  border:1px solid rgba(0,200,80,0.4);  color:#44ffaa; text-shadow:0 0 8px rgba(0,255,80,0.4); }
+  .alert-gifted { background:rgba(0,80,40,0.3);    border:1px solid rgba(0,255,100,0.5); color:#00ff88; text-shadow:0 0 10px rgba(0,255,80,0.5); }
+  .alert-ban    { background:rgba(100,0,0,0.25);   border:1px solid rgba(200,30,30,0.35);color:#ff7777; }
+  .alert-timeout{ background:rgba(80,40,0,0.25);   border:1px solid rgba(180,100,0,0.35);color:#ffaa44; }
+  .alert-bits   { background:rgba(0,60,80,0.25);   border:1px solid rgba(0,180,200,0.4); color:#66eeff; text-shadow:0 0 8px rgba(0,200,220,0.4); }
+`;
+document.head.appendChild(styleEl);
+
+const allUserNames = [
+  'SandWraith_','CrimsonBlade99','DesertPhoenix','VoidWalkerX','NightHunterGG',
+  'BloodMoonRaider','SilverStorm77','DragonSoul_','EchoOfAshes','IronVeil_',
+  'StarlightAce','ThunderRex','ObsidianKnight','CrimsonEcho_','ArcaneWolf',
+  'DawnBreaker_','ShadowFang99','StormCaller_','EmberKnight_','RuneSeeker',
+  'GrimReaper_GG','CinderWraith','ScarletHunter',
+  'ToxicTroll77','SpamBot_9000','RudeViewer_','BackseatGamer','CopyCat99',
+  'LurkerKing_','QuietWatcher','HypeTrainRider','ClipSniper_','RandomDude42',
+];
+
+const gifterNames   = ['DragonSoul_','StormCaller_','ObsidianKnight','VoidWalkerX','CrimsonBlade99'];
+const banReasons    = ['spamming','being toxic','posting links','ban evasion','self-promotion'];
+const timeoutNames  = ['LoudMouth_','BackseatGamer99','SpamKing_','NoisyViewer','ChatSpammer'];
+const timeoutLengths= ['60s','5 mins','10 mins','30 mins'];
+const bitAmounts    = [100,200,500,1000,5000];
+const bitMessages   = ['lets go! 🔥','keep it up!','W stream','for the hype!','love the stream','LETS GOOOOO'];
+const giftCounts    = [1,1,1,2,3,5,10];
+
+function spawnRandomMsg() {
+  const u = rand(users);
+  let text = rand(chatLines);
+  if (Math.random() < 0.18) text += ' ' + rand(emotes);
+  addMsg(u, text, u.badge === 'mod' || u.badge === 'vip');
+}
+
+function addAlert(text, cls) {
+  const div = document.createElement('div');
+  div.className = 'alert-msg ' + cls;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  trimMessages(); doScroll();
+}
+
+// ── SUB ──
+function spawnSub() {
+  const name   = rand(allUserNames);
+  const months = Math.random() < 0.3 ? ` — ${randInt(2,24)} months` : '';
+  addAlert(`// ${name} has joined the nest${months} //`, 'alert-sub');
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), `welcome ${name}! 🎉`); }, randInt(800,1800));
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), 'new operative detected 👁'); }, randInt(1500,3000));
+}
+
+// ── GIFTED SUBS ──
+function spawnGiftedSubs() {
+  const gifter = rand(gifterNames);
+  const count  = rand(giftCounts);
+  addAlert(`// ${gifter} gifted ${count} sub${count>1?'s':''} — nest grows stronger //`, 'alert-gifted');
+  const hypes = ['gifted subs PogChamp','W gifter W','legends exist fr 🎁','chat eating good','KING behaviour'];
+  const num = Math.min(count + 1, 4);
+  for (let i = 0; i < num; i++) {
+    setTimeout(() => { if (!isReplying) addMsg(rand(users), rand(hypes)); }, randInt(600,1200)*(i+1));
+  }
+}
+
+const rudeMessages = [
+  "this streamer is absolute crap lmao",
+  "what an arsehole move wtf",
+  "this game is sh*t and so is the streamer",
+  "bro you're dogsh*t at this game lol",
+  "holy crap what was that you muppet",
+  "this is garbage content get off stream",
+  "you're so bad at this it's embarrassing",
+  "what a tosser seriously",
+  "playing like a complete numpty lmaooo",
+  "this is the worst stream i've ever seen wtf",
+];
+
+const rudeNames = ['ToxicTroll77','SpamBot_9000','RudeViewer_','AngrySalad_','SkipLobby99','BackseatGamer','MadLad_420'];
+const modUsers  = users.filter(u => u.badge === 'mod');
+
+// ── BAN — rude message appears, gets deleted, ban alert ──
+function spawnBan() {
+  const name     = rand(rudeNames);
+  const rudeMsg  = rand(rudeMessages);
+  const rudeUser = { name, color: '#ff6666', badge: null };
+
+  const rudeDiv = addMsg(rudeUser, rudeMsg);
+
+  const strikeDelay = randInt(1500, 3000);
+  setTimeout(() => {
+    rudeDiv.style.transition = 'opacity 0.4s';
+    rudeDiv.style.opacity = '0.3';
+    rudeDiv.style.textDecoration = 'line-through';
+    rudeDiv.style.filter = 'grayscale(1)';
+    const tag = document.createElement('span');
+    tag.textContent = ' [purged]';
+    tag.style.cssText = 'font-size:9px;color:rgba(255,80,80,0.5);font-style:italic;font-family:Orbitron,monospace;';
+    rudeDiv.appendChild(tag);
+  }, strikeDelay);
+
+  setTimeout(() => {
+    addAlert(`// ${name} purged from the nest — ${rand(banReasons)} //`, 'alert-ban');
+  }, strikeDelay + randInt(800, 1500));
+
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), 'nest cleaned itself 🧹'); }, strikeDelay + randInt(1200,2200));
+  if (Math.random() < 0.6) {
+    setTimeout(() => { if (!isReplying) addMsg(rand(users), 'deserved 💀'); }, strikeDelay + randInt(2000,3200));
+  }
+  if (modUsers.length) {
+    setTimeout(() => { if (!isReplying) addMsg(rand(modUsers), rand(['keep it civil operatives','zero tolerance in the nest','read the rules 🔨'])); }, strikeDelay + randInt(1500,2800));
+  }
+}
+
+// ── TIMEOUT — rude message appears, gets deleted, timeout alert ──
+function spawnTimeout() {
+  const name     = rand(['LoudMouth_','BackseatGamer99','SpamKing_','NoisyViewer','ChatSpammer','MouthyKid_']);
+  const rudeMsg  = rand(rudeMessages);
+  const rudeUser = { name, color: '#ffaa66', badge: null };
+
+  const rudeDiv = addMsg(rudeUser, rudeMsg);
+
+  const strikeDelay = randInt(1200, 2500);
+  setTimeout(() => {
+    rudeDiv.style.transition = 'opacity 0.4s';
+    rudeDiv.style.opacity = '0.3';
+    rudeDiv.style.textDecoration = 'line-through';
+    rudeDiv.style.filter = 'grayscale(1)';
+    const tag = document.createElement('span');
+    tag.textContent = ' [purged]';
+    tag.style.cssText = 'font-size:9px;color:rgba(255,150,50,0.5);font-style:italic;font-family:Orbitron,monospace;';
+    rudeDiv.appendChild(tag);
+  }, strikeDelay);
+
+  const duration = rand(timeoutLengths);
+  setTimeout(() => {
+    addAlert(`// ${name} silenced for ${duration} //`, 'alert-timeout');
+  }, strikeDelay + randInt(600, 1200));
+
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), 'they should have known better lol'); }, strikeDelay + randInt(1000,2000));
+  if (modUsers.length) {
+    setTimeout(() => { if (!isReplying) addMsg(rand(modUsers), rand(['cool off time','calm it down','that\'s a timeout 👍','watch the language'])); }, strikeDelay + randInt(800,1800));
+  }
+}
+
+// ── BITS ──
+function spawnBits() {
+  const name   = rand(allUserNames);
+  const amount = rand(bitAmounts);
+  const msg    = rand(bitMessages);
+  addAlert(`// ${name} transmitted ${amount.toLocaleString()} energy — "${msg}" //`, 'alert-bits');
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), `${amount >= 1000 ? 'massive' : 'nice'} bits ${name}! 💎`); }, randInt(600,1400));
+}
+
+// ── RAID ──
+function spawnRaid() {
+  const raiders  = [82,115,47,230,64,310,88];
+  const channels = ['DesertLegion_TV','BladeStormLive','NightReign_','VoidCaster99','SandStorm_Live','CrimsonPeak_'];
+  const count    = rand(raiders);
+  const ch       = rand(channels);
+  addSystem(`⚔ INCURSION — ${ch} breaches with ${count} operatives ⚔`, true);
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), `welcome raiders!! 🔥`); }, randInt(600,1200));
+  setTimeout(() => { if (!isReplying) addMsg(rand(users), `${ch} squad lets gooo`); }, randInt(1400,2400));
+}
+
+function updateViewers() {
+  viewerCount += randInt(-12,18);
+  if (viewerCount < 800) viewerCount = 800;
+  vcountEl.textContent = viewerCount.toLocaleString();
+}
+
+function scheduleNext() {
+  setTimeout(function() { if (!isReplying) spawnRandomMsg(); scheduleNext(); }, randInt(400, 2600));
+}
+
+// ── WEIGHTED RANDOM EVENT SCHEDULER ──
+function scheduleRandomEvent() {
+  const events = [
+    { fn: spawnSub,        weight: 30 },
+    { fn: spawnGiftedSubs, weight: 15 },
+    { fn: spawnBan,        weight: 25 },
+    { fn: spawnTimeout,    weight: 25 },
+    { fn: spawnBits,       weight: 18 },
+  ];
+  const total = events.reduce((s,e) => s+e.weight, 0);
+  let r = Math.random() * total;
+  for (const e of events) { r -= e.weight; if (r <= 0) { e.fn(); break; } }
+  setTimeout(scheduleRandomEvent, randInt(20000, 35000));
+}
+
+scheduleNext();
+setInterval(updateViewers, 5000);
+setTimeout(spawnRaid, 45000);
+setInterval(spawnRaid, 120000);
+setTimeout(scheduleRandomEvent, randInt(5000, 10000));
+
+addMsg(rand(users), 'FIRST!! 🔥');
+setTimeout(()=>{ addMsg(rand(users), 'lets gooo HYPE!!'); }, 700);
+setTimeout(()=>{ addMsg(rand(users), 'chat moving fast already lol'); }, 1600);
+setTimeout(()=>{ addMsg(rand(users), 'W streamer W game 👑'); }, 2700);
+setTimeout(()=>{ addSystem('// transmit a message — the nest is listening //'); }, 3500);
+</script>
+</body>
+</html>

@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crimson Desert — Voice Listener</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --red:    #b43c14;
+    --orange: #ff6622;
+    --glow:   rgba(255,100,30,0.5);
+    --dark:   #080402;
+    --mid:    #120804;
+    --border: rgba(180,60,20,0.4);
+    --text:   #ffcca0;
+    --dim:    rgba(255,180,100,0.4);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--dark);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* scale texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='16'%3E%3Cellipse cx='9' cy='4' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3Cellipse cx='0' cy='12' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3Cellipse cx='18' cy='12' rx='8' ry='5' fill='none' stroke='rgba(180,60,20,0.07)' stroke-width='0.7'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    text-align: center;
+  }
+
+  h1 {
+    font-family: 'Orbitron', monospace;
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--orange);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px var(--glow);
+    animation: flicker 7s ease-in-out infinite;
+  }
+
+  @keyframes flicker {
+    0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.3} 94%{opacity:1} 96%{opacity:0.6} 97%{opacity:1}
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── MIC BUTTON ── */
+  .mic-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #mic-btn {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    background: var(--mid);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    position: relative;
+    transition: all 0.2s;
+    outline: none;
+  }
+
+  #mic-btn:hover { border-color: var(--orange); }
+
+  /* pulse rings when active */
+  #mic-btn::before,
+  #mic-btn::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid var(--orange);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #mic-btn.listening::before {
+    width: 130px; height: 130px;
+    animation: ring 1.5s ease-out infinite;
+  }
+  #mic-btn.listening::after {
+    width: 155px; height: 155px;
+    animation: ring 1.5s ease-out infinite 0.5s;
+  }
+
+  #mic-btn.listening {
+    border-color: var(--orange);
+    background: rgba(180,60,20,0.2);
+    box-shadow: 0 0 30px var(--glow), inset 0 0 20px rgba(180,60,20,0.1);
+  }
+
+  @keyframes ring {
+    0%   { transform:scale(1);   opacity:0.6; }
+    100% { transform:scale(1.3); opacity:0; }
+  }
+
+  .mic-status {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    transition: color 0.3s;
+  }
+
+  .mic-status.active { color: var(--orange); text-shadow: 0 0 10px var(--glow); }
+  .mic-status.error  { color: #ff6666; }
+
+  /* ── WAVEFORM ── */
+  .waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 32px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .waveform.active { opacity: 1; }
+
+  .waveform span {
+    display: block;
+    width: 3px;
+    background: var(--orange);
+    border-radius: 2px;
+    min-height: 3px;
+    animation: wave 0.8s ease-in-out infinite;
+    box-shadow: 0 0 6px var(--glow);
+  }
+
+  .waveform span:nth-child(1)  { animation-delay: 0.0s; }
+  .waveform span:nth-child(2)  { animation-delay: 0.1s; }
+  .waveform span:nth-child(3)  { animation-delay: 0.2s; }
+  .waveform span:nth-child(4)  { animation-delay: 0.3s; }
+  .waveform span:nth-child(5)  { animation-delay: 0.15s; }
+  .waveform span:nth-child(6)  { animation-delay: 0.05s; }
+  .waveform span:nth-child(7)  { animation-delay: 0.25s; }
+  .waveform span:nth-child(8)  { animation-delay: 0.35s; }
+  .waveform span:nth-child(9)  { animation-delay: 0.1s; }
+  .waveform span:nth-child(10) { animation-delay: 0.2s; }
+  .waveform span:nth-child(11) { animation-delay: 0.3s; }
+  .waveform span:nth-child(12) { animation-delay: 0.0s; }
+
+  @keyframes wave {
+    0%,100% { height: 4px; }
+    50%      { height: 24px; }
+  }
+
+  /* ── TRANSCRIPT BOX ── */
+  .transcript-wrap {
+    width: 100%;
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .transcript-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    padding: 7px 14px 5px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  #transcript-live {
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,200,150,0.5);
+    font-style: italic;
+    min-height: 42px;
+    letter-spacing: 0.3px;
+    line-height: 1.4;
+    transition: color 0.2s;
+  }
+
+  #transcript-live.final {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  /* ── HISTORY LOG ── */
+  .history-wrap {
+    width: 100%;
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .history-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    padding: 7px 14px 5px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #clear-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--dim);
+    font-family: 'Orbitron', monospace;
+    font-size: 8px;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+  #clear-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+  #history-log {
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+
+  #history-log::-webkit-scrollbar { width: 3px; }
+  #history-log::-webkit-scrollbar-track { background: transparent; }
+  #history-log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .history-item {
+    padding: 5px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,200,150,0.7);
+    border-bottom: 1px solid rgba(180,60,20,0.1);
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    animation: slideIn 0.2s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity:0; transform:translateX(-6px); }
+    to   { opacity:1; transform:translateX(0); }
+  }
+
+  .history-item:last-child { border-bottom: none; }
+
+  .history-time {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    color: var(--dim);
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+
+  .history-sent {
+    color: rgba(255,150,80,0.5);
+    font-size: 10px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .no-history {
+    padding: 12px 14px;
+    font-size: 11px;
+    color: var(--dim);
+    font-style: italic;
+    text-align: center;
+  }
+
+  /* ── SETTINGS ── */
+  .settings-wrap {
+    width: 100%;
+    background: var(--mid);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .settings-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    padding: 7px 14px 5px;
+    border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+
+  .settings-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .setting-row label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .setting-row .hint {
+    font-size: 10px;
+    color: var(--dim);
+    display: block;
+    font-weight: 400;
+    margin-top: 1px;
+  }
+
+  /* toggle switch */
+  .toggle {
+    position: relative;
+    width: 38px; height: 20px;
+    flex-shrink: 0;
+  }
+
+  .toggle input { opacity:0; width:0; height:0; }
+
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 2px; top: 2px;
+    background: rgba(255,180,100,0.4);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+
+  .toggle input:checked + .toggle-slider {
+    background: rgba(180,60,20,0.3);
+    border-color: var(--orange);
+  }
+
+  .toggle input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--glow);
+  }
+
+  /* min length slider */
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 120px; height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+    flex-shrink: 0;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--glow);
+    cursor: pointer;
+  }
+
+  #min-len-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 10px;
+    color: var(--orange);
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── FOOTER NOTE ── */
+  .footer-note {
+    font-size: 10px;
+    color: var(--dim);
+    text-align: center;
+    letter-spacing: 0.3px;
+    line-height: 1.6;
+    opacity: 0.7;
+  }
+
+  /* ── SENT FLASH ── */
+  #sent-flash {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--orange);
+    text-shadow: 0 0 10px var(--glow);
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.2s;
+    height: 18px;
+  }
+
+  #sent-flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>⚔ Voice Listener</h1>
+    <p class="subtitle">Crimson Desert — Speech to Chat</p>
+  </header>
+
+  <div class="mic-area">
+    <button id="mic-btn" onclick="toggleListening()" title="Click to start/stop listening">🎙️</button>
+    <div class="mic-status" id="mic-status">Click mic to start</div>
+    <div class="waveform" id="waveform">
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div id="sent-flash">→ sent to chat</div>
+  </div>
+
+  <!-- Live transcript -->
+  <div class="transcript-wrap">
+    <div class="transcript-label">🎙 Hearing now...</div>
+    <div id="transcript-live">Waiting for speech...</div>
+  </div>
+
+  <!-- History -->
+  <div class="history-wrap">
+    <div class="history-label">
+      Recent phrases sent to chat
+      <button id="clear-btn" onclick="clearHistory()">Clear</button>
+    </div>
+    <div id="history-log">
+      <div class="no-history" id="no-history">Nothing sent yet</div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="settings-wrap">
+    <div class="settings-label">⚙ Settings</div>
+    <div class="settings-body">
+
+      <div class="setting-row">
+        <label>
+          Auto-restart after silence
+          <span class="hint">Keeps listening continuously</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-restart" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label>
+          Skip short phrases
+          <span class="hint">Ignores background noise blips</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-minlen" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <label>Min words to send</label>
+        <input type="range" id="min-len-slider" min="2" max="8" value="3" oninput="updateMinLen(this.value)">
+        <span id="min-len-val">3</span>
+      </div>
+
+      <div class="setting-row">
+        <label>
+          Show what was sent in chat
+          <span class="hint">Adds your spoken text as streamer message</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="toggle-show-text" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="footer-note">
+    Open both this file and your chat widget in the same browser.<br>
+    Speech is sent via localStorage — no internet needed for listening.
+  </p>
+
+</div>
+
+<script>
+let recognition   = null;
+let listening     = false;
+let minWords      = 3;
+let historyItems  = [];
+
+const micBtn        = document.getElementById('mic-btn');
+const micStatus     = document.getElementById('mic-status');
+const waveform      = document.getElementById('waveform');
+const transcriptEl  = document.getElementById('transcript-live');
+const historyLog    = document.getElementById('history-log');
+const noHistory     = document.getElementById('no-history');
+const sentFlash     = document.getElementById('sent-flash');
+
+// Check browser support
+if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+  micStatus.textContent = 'Not supported in this browser';
+  micStatus.className = 'mic-status error';
+  micBtn.disabled = true;
+  micBtn.style.opacity = '0.4';
+  micBtn.textContent = '🚫';
+}
+
+function buildRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const r  = new SR();
+  r.continuous      = true;
+  r.interimResults  = true;
+  r.lang            = 'en-GB';
+  r.maxAlternatives = 1;
+
+  r.onstart = () => {
+    listening = true;
+    micBtn.classList.add('listening');
+    micBtn.textContent = '🔴';
+    micStatus.textContent = 'Listening...';
+    micStatus.className = 'mic-status active';
+    waveform.classList.add('active');
+    transcriptEl.textContent = 'Hearing...';
+    transcriptEl.className = '';
+  };
+
+  r.onresult = (e) => {
+    let interim = '';
+    let finalText = '';
+
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) finalText += t;
+      else interim += t;
+    }
+
+    // Show interim in dimmed style
+    if (interim) {
+      transcriptEl.textContent = interim;
+      transcriptEl.className = '';
+    }
+
+    // Final result — send to chat if long enough
+    if (finalText.trim()) {
+      const clean = finalText.trim();
+      transcriptEl.textContent = clean;
+      transcriptEl.className = 'final';
+
+      const wordCount = clean.split(/\s+/).filter(Boolean).length;
+      const useMinLen = document.getElementById('toggle-minlen').checked;
+      const minLen    = useMinLen ? minWords : 1;
+
+      if (wordCount >= minLen) {
+        sendToChat(clean);
+      }
+    }
+  };
+
+  r.onerror = (e) => {
+    if (e.error === 'no-speech') return; // silent, just restart
+    if (e.error === 'not-allowed') {
+      micStatus.textContent = 'Mic access denied — allow in browser';
+      micStatus.className = 'mic-status error';
+      stopListening();
+      return;
+    }
+    console.warn('Speech error:', e.error);
+  };
+
+  r.onend = () => {
+    if (listening && document.getElementById('toggle-restart').checked) {
+      // Auto-restart
+      try { r.start(); } catch(err) {}
+    } else {
+      stopListening();
+    }
+  };
+
+  return r;
+}
+
+function toggleListening() {
+  if (listening) stopListening();
+  else startListening();
+}
+
+function startListening() {
+  try {
+    recognition = buildRecognition();
+    recognition.start();
+  } catch(err) {
+    micStatus.textContent = 'Could not start — try again';
+    micStatus.className = 'mic-status error';
+  }
+}
+
+function stopListening() {
+  listening = false;
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  micBtn.classList.remove('listening');
+  micBtn.textContent = '🎙️';
+  micStatus.textContent = 'Stopped — click mic to restart';
+  micStatus.className = 'mic-status';
+  waveform.classList.remove('active');
+  transcriptEl.textContent = 'Waiting for speech...';
+  transcriptEl.className = '';
+}
+
+function sendToChat(text) {
+  const showText = document.getElementById('toggle-show-text').checked;
+
+  // Send to chat widget via BroadcastChannel
+  try {
+    const bc = new BroadcastChannel('cd_voice_channel');
+    bc.postMessage({ text, showText });
+    bc.close();
+  } catch(e) {
+    console.warn('BroadcastChannel send failed:', e);
+  }
+
+  // Flash confirmation
+  sentFlash.classList.add('show');
+  setTimeout(() => sentFlash.classList.remove('show'), 1200);
+
+  // Add to history
+  addHistory(text);
+}
+
+function addHistory(text) {
+  if (noHistory) noHistory.style.display = 'none';
+
+  const now  = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+
+  const item = document.createElement('div');
+  item.className = 'history-item';
+  item.innerHTML = `<span class="history-time">${time}</span><span>${escHtml(text)}</span><span class="history-sent">✓ sent</span>`;
+  historyLog.insertBefore(item, historyLog.firstChild);
+
+  // Keep only last 20
+  while (historyLog.children.length > 21) historyLog.removeChild(historyLog.lastChild);
+}
+
+function clearHistory() {
+  historyLog.innerHTML = '<div class="no-history" id="no-history">Nothing sent yet</div>';
+}
+
+function updateMinLen(val) {
+  minWords = parseInt(val);
+  document.getElementById('min-len-val').textContent = val;
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
