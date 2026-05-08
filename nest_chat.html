@@ -551,7 +551,7 @@ async function handleGameEvent(type, n) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 60,
@@ -589,7 +589,7 @@ async function triggerAIReplies(streamerMsg) {
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': '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', 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': getApiKey(), 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-inaccessible': '' },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 60,
@@ -835,6 +835,27 @@ setTimeout(()=>{ addMsg(rand(users), 'lets gooo HYPE!!'); }, 700);
 setTimeout(()=>{ addMsg(rand(users), 'chat moving fast already lol'); }, 1600);
 setTimeout(()=>{ addMsg(rand(users), 'W streamer W game 👑'); }, 2700);
 setTimeout(()=>{ addSystem('// transmit a message — the nest is listening //'); }, 3500);
+
+function getApiKey() {
+  return localStorage.getItem('cd_api_key') || '';
+}
+
+function saveApiKey() {
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    document.getElementById('api-error').style.display = 'block';
+    return;
+  }
+  localStorage.setItem('cd_api_key', val);
+  document.getElementById('api-overlay').style.display = 'none';
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+  const saved = localStorage.getItem('cd_api_key');
+  if (saved && saved.startsWith('sk-ant-')) {
+    document.getElementById('api-overlay').style.display = 'none';
+  }
+});
 </script>
 </body>
 </html>
