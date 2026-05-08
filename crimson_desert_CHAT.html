@@ -505,12 +505,10 @@ async function triggerAIReplies(streamerMsg) {
         })
       });
       const data = await res.json();
-      if (data.error) { setDebug('API ERR: ' + data.error.message, false); addMsg(u, rand(chatLines), false, 'reply-msg'); continue; }
+      if (data.error) { addMsg(u, rand(chatLines), false, 'reply-msg'); continue; }
       const replyText = data.content?.[0]?.text?.trim().replace(/^["']|["']$/g,'') ?? rand(chatLines);
-      setDebug('AI replied OK ✓', true);
       addMsg(u, replyText, false, 'reply-msg');
     } catch(e) {
-      setDebug('FETCH ERR: ' + e.message, false);
       addMsg(u, rand(chatLines), false, 'reply-msg');
     }
   }
