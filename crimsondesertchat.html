@@ -136,23 +136,8 @@
 </div>
 
 <script>
-// ── API KEY ──
-function getApiKey() { return localStorage.getItem('cd_api_key') || ''; }
-
-function saveApiKey() {
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val.startsWith('sk-ant-')) { document.getElementById('api-key-err').style.display='block'; return; }
-  localStorage.setItem('cd_api_key', val);
-  document.getElementById('api-overlay').style.display = 'none';
-}
-
-document.getElementById('api-key-input').addEventListener('keydown', function(e) { if (e.key === 'Enter') saveApiKey(); });
-
-// Hide overlay if key already saved
-const _savedKey = localStorage.getItem('cd_api_key');
-if (_savedKey && _savedKey.startsWith('sk-ant-')) {
-  document.getElementById('api-overlay').style.display = 'none';
-}
+// Gemini key hardcoded — no overlay needed
+document.getElementById('api-overlay').style.display = 'none';
 
 // ── SETUP ──
 const messagesEl = document.getElementById('messages');
@@ -295,19 +280,20 @@ messagesEl.addEventListener('scroll', function() {
 });
 
 // ── AI CALL ──
+const GEMINI_KEY = 'AIzaSyAQPVPXTfG3oen_K7yj1Fwhp8rnIJZ8NgU';
 async function callAI(system, userMsg) {
-  const res = await fetch('https://cd-proxy.snakepliskin501.workers.dev', {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': getApiKey(),
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:60, system, messages:[{role:'user',content:userMsg}] })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: system }] },
+      contents: [{ role:'user', parts:[{ text: userMsg }] }],
+      generationConfig: { maxOutputTokens: 60, temperature: 0.9 }
+    })
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || 'API error');
-  return data.content?.[0]?.text?.trim().replace(/^["']|["']$/g,'') || rand(chatLines);
+  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().replace(/^["']|["']$/g,'') || rand(chatLines);
 }
 
 // ── AI REPLIES ──
