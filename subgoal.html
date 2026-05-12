@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:460px; background:transparent; overflow:hidden; font-family:'Rajdhani',sans-serif; }
+
+.goal-wrap {
+  position:relative; width:460px; background:#080f09;
+  overflow:hidden; padding:14px 28px 16px;
+}
+.border-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.goal-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:10px; position:relative; z-index:1;
+}
+.goal-title {
+  font-family:'Orbitron',monospace; font-size:8px; font-weight:700;
+  letter-spacing:2.5px; color:#2a6a32; text-transform:uppercase;
+}
+.goal-count {
+  font-family:'Orbitron',monospace; font-size:13px; font-weight:900;
+  color:#00ff55; letter-spacing:1px; text-shadow:0 0 8px rgba(0,255,80,0.5);
+}
+.goal-count .slash { color:#1e4d24; }
+.goal-count .total { color:#2a6a32; }
+
+.bar-track {
+  width:100%; height:20px; background:#060e07;
+  border:1px solid #142a16; overflow:hidden; position:relative; z-index:1;
+}
+.bar-fill {
+  height:100%; width:0%; background:#00ff55;
+  transition:width 0.85s cubic-bezier(0.16,1,0.3,1); position:relative;
+}
+.bar-fill::after {
+  content:''; position:absolute; top:3px; left:8px; right:8px; height:3px;
+  background:rgba(255,255,255,0.18); border-radius:3px;
+}
+.bar-segments {
+  position:absolute; top:0; left:0; right:0; bottom:0;
+  display:flex; pointer-events:none;
+}
+.seg { flex:1; border-right:1px solid rgba(0,0,0,0.35); }
+.seg:last-child { border-right:none; }
+
+.milestones {
+  display:flex; justify-content:space-between;
+  margin-top:6px; position:relative; z-index:1;
+}
+.milestone {
+  font-size:9px; font-weight:600; letter-spacing:1px;
+  color:#1e4d24; font-family:'Orbitron',monospace; transition:color 0.4s;
+}
+.milestone.reached { color:#00ff55; text-shadow:0 0 6px rgba(0,255,80,0.5); }
+
+.eye { position:absolute; width:14px; height:9px; pointer-events:none; z-index:2; }
+.eye-inner {
+  width:100%; height:100%; background:#00ff55; border-radius:50%;
+  box-shadow:0 0 7px 2px #00ff55, 0 0 16px 4px rgba(0,255,80,0.4);
+  animation:eye-pulse 2.6s ease-in-out infinite; position:relative;
+}
+.eye-inner::after {
+  content:''; position:absolute; width:4px; height:7px;
+  background:#000; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%);
+}
+@keyframes eye-pulse {
+  0%,100%{ box-shadow:0 0 7px 2px #00ff55, 0 0 16px 4px rgba(0,255,80,0.4); }
+  50%    { box-shadow:0 0 12px 4px #00ff55, 0 0 26px 7px rgba(0,255,80,0.6); }
+}
+.eye.tl { top:5px;  left:5px; }
+.eye.tr { top:5px;  right:5px; }
+.eye.bl { bottom:5px; left:5px; }
+.eye.br { bottom:5px; right:5px; }
+
+/* Flash animation when sub comes in */
+@keyframes barflash {
+  0%  { filter:brightness(1); }
+  30% { filter:brightness(2.5); }
+  100%{ filter:brightness(1); }
+}
+.bar-fill.flash { animation:barflash 0.5s ease; }
+</style>
+</head>
+<body>
+<div class="goal-wrap">
+
+  <svg class="border-svg" viewBox="0 0 460 80" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="sc" x="0" y="0" width="18" height="16" patternUnits="userSpaceOnUse">
+        <ellipse cx="9"  cy="4"  rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="0"  cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="18" cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+      </pattern>
+    </defs>
+    <rect x="0"   y="0"   width="460" height="12" fill="url(#sc)"/>
+    <rect x="0"   y="68"  width="460" height="12" fill="url(#sc)"/>
+    <rect x="0"   y="12"  width="12"  height="56" fill="url(#sc)"/>
+    <rect x="448" y="12"  width="12"  height="56" fill="url(#sc)"/>
+    <rect x="12" y="12" width="436" height="56" fill="none" stroke="#00ff55" stroke-width="0.8" stroke-opacity="0.55"/>
+    <rect x="1" y="1" width="458" height="78" fill="none" stroke="#00bb44" stroke-width="0.8" stroke-opacity="0.4"/>
+    <g stroke="#00ff55" stroke-width="2" fill="none" stroke-linecap="round">
+      <polyline points="5,12  5,5   12,5"/>
+      <polyline points="448,5 455,5 455,12"/>
+      <polyline points="5,68  5,75  12,75"/>
+      <polyline points="455,68 455,75 448,75"/>
+    </g>
+    <g stroke="#00cc44" stroke-width="0.7" opacity="0.4">
+      <line x1="230" y1="0" x2="230" y2="7"/>
+      <line x1="230" y1="73" x2="230" y2="80"/>
+    </g>
+  </svg>
+
+  <div class="eye tl"><div class="eye-inner" style="animation-delay:0s"></div></div>
+  <div class="eye tr"><div class="eye-inner" style="animation-delay:0.7s"></div></div>
+  <div class="eye bl"><div class="eye-inner" style="animation-delay:1.4s"></div></div>
+  <div class="eye br"><div class="eye-inner" style="animation-delay:2.1s"></div></div>
+
+  <div class="goal-header">
+    <div class="goal-title">Sub Goal — Welcome to the Nest</div>
+    <div class="goal-count">
+      <span id="cur">0</span><span class="slash"> / </span><span class="total">100</span>
+    </div>
+  </div>
+  <div class="bar-track">
+    <div class="bar-fill" id="bar-fill"></div>
+    <div class="bar-segments">
+      <div class="seg"></div><div class="seg"></div>
+      <div class="seg"></div><div class="seg"></div><div class="seg"></div>
+    </div>
+  </div>
+  <div class="milestones">
+    <span class="milestone" id="m0">0</span>
+    <span class="milestone" id="m25">25</span>
+    <span class="milestone" id="m50">50</span>
+    <span class="milestone" id="m75">75</span>
+    <span class="milestone" id="m100">100</span>
+  </div>
+</div>
+
+<script>
+const GOAL = 100;
+let current   = 0;
+let lastSubTs = 0;
+
+const milestones = [
+  {id:'m0',val:0},{id:'m25',val:25},{id:'m50',val:50},
+  {id:'m75',val:75},{id:'m100',val:100}
+];
+const barFill = document.getElementById('bar-fill');
+const curEl   = document.getElementById('cur');
+
+function updateGoal(n) {
+  current = Math.min(n, GOAL);
+  barFill.style.width = (current / GOAL * 100) + '%';
+  curEl.textContent = current;
+  milestones.forEach(function(m) {
+    document.getElementById(m.id).classList.toggle('reached', current >= m.val);
+  });
+  // Flash bar on update
+  barFill.classList.remove('flash');
+  void barFill.offsetWidth;
+  barFill.classList.add('flash');
+  setTimeout(function() { barFill.classList.remove('flash'); }, 600);
+}
+
+// BroadcastChannel — works when on same browser/origin
+try {
+  const bc = new BroadcastChannel('nest_subs');
+  bc.onmessage = function(e) {
+    if (e.data && e.data.type === 'sub' && e.data.count) {
+      updateGoal(e.data.count);
+    }
+  };
+} catch(e) {}
+
+// localStorage fallback — works across Streamlabs browser sources on same domain
+setInterval(function() {
+  try {
+    const raw = localStorage.getItem('nest_sub_event');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d.ts || d.ts === lastSubTs) return;
+    lastSubTs = d.ts;
+    if (d.count) updateGoal(d.count);
+  } catch(e) {}
+}, 500);
+
+updateGoal(0);
+</script>
+</body>
+</html>
