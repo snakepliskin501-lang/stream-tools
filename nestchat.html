@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" style="background:transparent!important;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Nest — Live Chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { background:transparent!important; font-family:'Rajdhani',sans-serif; overflow:hidden; width:340px; height:100vh; }
+
+  #chat-wrapper { width:340px; height:100vh; display:flex; flex-direction:column; background:transparent; position:relative; }
+  #chat-header  { display:none; }
+
+  #messages { flex:1; overflow-y:auto; padding:8px 6px; display:flex; flex-direction:column; gap:2px; scroll-behavior:smooth; }
+  #messages::-webkit-scrollbar { width:3px; }
+  #messages::-webkit-scrollbar-thumb { background:rgba(0,200,60,0.3); border-radius:2px; }
+
+  .msg { display:flex; align-items:baseline; gap:5px; padding:3px 6px; border-radius:2px; animation:fadeIn 0.25s ease; line-height:1.4; flex-wrap:wrap; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+
+  .badge { font-family:'Orbitron',monospace; font-size:8px; padding:1px 5px; border-radius:2px; font-weight:700; flex-shrink:0; }
+  .badge-mod { background:rgba(0,180,80,0.2);  color:#00ff55; border:1px solid rgba(0,200,60,0.4); }
+  .badge-sub { background:rgba(0,120,60,0.2);  color:#44ffaa; border:1px solid rgba(0,160,80,0.3); }
+  .badge-vip { background:rgba(0,200,80,0.15); color:#88ffcc; border:1px solid rgba(0,200,80,0.3); }
+  .badge-you { background:rgba(0,255,80,0.2);  color:#00ff55; border:1px solid rgba(0,255,80,0.5); }
+
+  .username { font-family:'Orbitron',monospace; font-size:10px; font-weight:700; flex-shrink:0; letter-spacing:0.5px; }
+  .colon    { font-size:12px; color:rgba(0,200,60,0.3); flex-shrink:0; }
+  .text     { font-size:13px; word-break:break-word; flex:1; min-width:0; font-family:'Rajdhani',sans-serif; font-weight:600; }
+
+  .system-msg { font-family:'Orbitron',monospace; font-size:10px; color:rgba(0,200,60,0.45); text-align:center; padding:4px 0; font-style:italic; letter-spacing:0.5px; }
+  .raid-msg   { font-family:'Orbitron',monospace; font-size:10px; color:#00ff55; text-align:center; padding:5px 8px; background:rgba(0,180,60,0.12); border:1px solid rgba(0,200,60,0.35); border-radius:3px; margin:4px 0; letter-spacing:1px; text-shadow:0 0 8px rgba(0,255,80,0.5); }
+
+  .alert-msg    { font-family:'Orbitron',monospace; font-size:10px; text-align:center; padding:5px 10px; border-radius:3px; margin:4px 0; animation:fadeIn 0.4s ease; font-weight:700; letter-spacing:0.8px; }
+  .alert-sub    { background:rgba(0,100,50,0.25); border:1px solid rgba(0,200,80,0.4); color:#44ffaa; text-shadow:0 0 8px rgba(0,255,80,0.4); }
+  .alert-gifted { background:rgba(0,80,40,0.3);   border:1px solid rgba(0,255,100,0.5); color:#00ff88; }
+  .alert-ban    { background:rgba(100,0,0,0.25);  border:1px solid rgba(200,30,30,0.35); color:#ff7777; }
+  .alert-timeout{ background:rgba(80,40,0,0.25);  border:1px solid rgba(180,100,0,0.35); color:#ffaa44; }
+  .alert-bits   { background:rgba(0,60,80,0.25);  border:1px solid rgba(0,180,200,0.4); color:#66eeff; }
+
+  .typing-indicator { display:flex; align-items:center; gap:6px; padding:3px 8px; animation:fadeIn 0.2s ease; }
+  .typing-dots span { width:4px; height:4px; border-radius:50%; background:rgba(0,200,60,0.6); animation:bounce 1.2s infinite; display:inline-block; margin:0 1px; }
+  .typing-dots span:nth-child(2){ animation-delay:0.2s; }
+  .typing-dots span:nth-child(3){ animation-delay:0.4s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.4} 40%{transform:translateY(-4px);opacity:1} }
+  .typing-name  { font-family:'Orbitron',monospace; font-size:9px; font-weight:700; }
+  .typing-label { font-size:10px; color:rgba(0,200,60,0.4); font-style:italic; }
+
+  #scroll-btn { position:absolute; bottom:56px; right:10px; background:rgba(0,120,40,0.9); color:#00ff55; border:1px solid rgba(0,200,60,0.5); border-radius:10px; padding:3px 10px; font-size:10px; cursor:pointer; font-family:'Orbitron',monospace; font-weight:700; display:none; z-index:10; }
+
+  #chat-input-area { padding:8px 10px; background:rgba(8,15,9,0.85); border-top:1px solid rgba(0,200,60,0.15); display:flex; gap:6px; flex-shrink:0; }
+  #chat-input { flex:1; background:rgba(0,255,80,0.04); border:1px solid rgba(0,200,60,0.25); border-radius:2px; padding:6px 10px; font-size:12px; color:#c8f0d4; outline:none; font-family:'Rajdhani',sans-serif; font-weight:600; }
+  #chat-input::placeholder { color:rgba(0,180,60,0.3); }
+  #chat-input:disabled { opacity:0.4; }
+  #send-btn { background:rgba(0,140,50,0.4); border:1px solid rgba(0,200,60,0.5); color:#00ff55; border-radius:2px; padding:6px 12px; font-family:'Orbitron',monospace; font-size:9px; font-weight:700; letter-spacing:1px; cursor:pointer; }
+
+  /* POLL */
+  .poll-box { background:rgba(0,255,80,0.06); border:1px solid rgba(0,200,60,0.3); border-radius:6px; margin:6px 4px; padding:10px 12px; animation:fadeIn 0.4s ease; }
+  .poll-title { font-family:'Orbitron',monospace; font-size:11px; font-weight:700; color:#00ff55; margin-bottom:8px; letter-spacing:0.5px; }
+  .poll-option { margin-bottom:6px; }
+  .poll-option-label { display:flex; justify-content:space-between; font-size:11px; color:rgba(180,240,190,0.8); margin-bottom:3px; font-family:'Rajdhani',sans-serif; font-weight:600; }
+  .poll-bar-bg { background:rgba(0,255,80,0.1); border-radius:4px; height:7px; overflow:hidden; }
+  .poll-bar { height:100%; border-radius:4px; transition:width 0.5s ease; }
+  .poll-footer { font-size:9px; color:rgba(0,200,60,0.4); margin-top:5px; text-align:center; font-family:'Orbitron',monospace; }
+  .poll-winner { font-family:'Orbitron',monospace; font-size:11px; font-weight:700; text-align:center; padding:5px; color:#00ff55; text-shadow:0 0 8px rgba(0,255,80,0.5); }
+</style>
+</head>
+<body style="background:transparent!important;">
+<div id="chat-wrapper" style="background:transparent!important;">
+  <div id="messages">
+    <div class="system-msg">// welcome to the nest — chill vibes only //</div>
+  </div>
+  <button id="scroll-btn" onclick="scrollToBottom()">&#8595; NEW</button>
+  <div id="chat-input-area">
+    <input id="chat-input" type="text" placeholder="transmit message... or !poll Q | A | B" maxlength="200"/>
+    <button id="send-btn" onclick="sendUserMsg()">SEND</button>
+  </div>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const inputEl    = document.getElementById('chat-input');
+const scrollBtn  = document.getElementById('scroll-btn');
+const sendBtn    = document.getElementById('send-btn');
+
+let autoScroll  = true;
+let viewerCount = 1247;
+let isReplying  = false;
+const STREAMER  = 'Streamer';
+
+const users = [
+  { name:'SandWraith_',     color:'#44ffaa', badge:null  },
+  { name:'CrimsonBlade99',  color:'#00ff88', badge:'sub' },
+  { name:'DesertPhoenix',   color:'#88ffcc', badge:null  },
+  { name:'VoidWalkerX',     color:'#00ffaa', badge:'sub' },
+  { name:'NightHunterGG',   color:'#66ff99', badge:null  },
+  { name:'BloodMoonRaider', color:'#00ff55', badge:'mod' },
+  { name:'SilverStorm77',   color:'#aaffdd', badge:null  },
+  { name:'DragonSoul_',     color:'#33ff88', badge:'vip' },
+  { name:'EchoOfAshes',     color:'#77ffbb', badge:'sub' },
+  { name:'IronVeil_',       color:'#55ffcc', badge:null  },
+  { name:'StarlightAce',    color:'#99ffdd', badge:'sub' },
+  { name:'ThunderRex',      color:'#00ff77', badge:null  },
+  { name:'ObsidianKnight',  color:'#44ffbb', badge:'mod' },
+  { name:'CrimsonEcho_',    color:'#22ff66', badge:null  },
+  { name:'ArcaneWolf',      color:'#88ffee', badge:'sub' },
+  { name:'DawnBreaker_',    color:'#66ffaa', badge:null  },
+  { name:'ShadowFang99',    color:'#aaffcc', badge:null  },
+  { name:'StormCaller_',    color:'#33ffaa', badge:'vip' },
+  { name:'EmberKnight_',    color:'#55ff99', badge:null  },
+  { name:'RuneSeeker',      color:'#77ffdd', badge:'sub' },
+  { name:'GrimReaper_GG',   color:'#00ffcc', badge:null  },
+  { name:'CinderWraith',    color:'#44ff99', badge:'sub' },
+  { name:'ScarletHunter',   color:'#99ffbb', badge:'vip' },
+];
+
+const chatLines = [
+  'vibes are immaculate rn','this playlist goes hard','W music taste',
+  'what song is this?','bro drop the playlist link','this track slaps fr',
+  'perfect chill stream','love the atmosphere in here',
+  'the nest is so cozy','this is exactly what I needed today',
+  'these beats are everything','who is this artist?',
+  'I could fall asleep to this ngl','W stream W vibes',
+  'this is giving late night drive energy','absolute cinema',
+  'already subbed worth it','first time here not leaving',
+  'the chill is unmatched','bro curated this perfectly',
+  'no skip playlist fr','every song has been a banger',
+  'this is my new study playlist','the nest never misses',
+  'big fan of the vibe here','this stream is therapy fr',
+  'zero bad vibes in this chat','W streamer W music W chat',
+  'I showed up for 5 mins and stayed 2 hours lol',
+  'someone give me the setlist','living in this moment',
+  'the atmosphere here is unreal','cozy stream of the year',
+];
+
+const allUserNames = ['SandWraith_','CrimsonBlade99','DesertPhoenix','VoidWalkerX','NightHunterGG','BloodMoonRaider','SilverStorm77','DragonSoul_','EchoOfAshes','IronVeil_','StarlightAce','ThunderRex','ObsidianKnight','ToxicTroll77','SpamBot_9000','RudeViewer_','AngrySalad_','MadLad_420','LoudMouth_','ChatSpammer'];
+const gifters    = ['DragonSoul_','StormCaller_','ObsidianKnight','VoidWalkerX','CrimsonBlade99'];
+const modUsers   = users.filter(u => u.badge === 'mod');
+const giftCounts = [1,1,1,2,3,5,10];
+const bitAmounts = [100,200,500,1000,5000];
+
+// Matched incident pairs — message shown then correct ban reason used
+const incidents = [
+  { name:'ToxicTroll77',   msg:'this streamer is absolute crap lmao',                           reason:'being toxic',           color:'#ff6666' },
+  { name:'SpamBot_9000',   msg:'BUY FOLLOWERS CHEAP >> bit.ly/f0ll0ws99 << GET 10K FAST',       reason:'posting links',         color:'#ff9944' },
+  { name:'RudeViewer_',    msg:'what an absolute arsehole lmaooo get off stream',                reason:'hate speech',           color:'#ff6666' },
+  { name:'AngrySalad_',    msg:'FREE NITRO CLAIM NOW >> discord.gg/fr33nitr0 << LIMITED',        reason:'posting links',         color:'#ff9944' },
+  { name:'MadLad_420',     msg:'you are genuinely dogsh*t at this fr embarrassing',              reason:'being toxic',           color:'#ff6666' },
+  { name:'SkipLobby99',    msg:'CHECK OUT MY STREAM >> twitch.tv/skiplobby99 << LIVE NOW',       reason:'self promotion',        color:'#ff9944' },
+  { name:'BackseatKing_',  msg:'bro you are actually the worst streamer ive ever seen istg',     reason:'being toxic',           color:'#ff6666' },
+  { name:'L1nkSpammer',    msg:'MAKE 500 DOLLARS A DAY >> tinyurl.com/mak3m0ney << NO JOKE',    reason:'posting links',         color:'#ff9944' },
+  { name:'HatefulHarry',   msg:'nobody wants to watch this garbage content get off twitch',      reason:'hate speech',           color:'#ff6666' },
+  { name:'CryptoSpam_',    msg:'EARN FREE CRYPTO >> bit.ly/cryptofr33 << JOIN NOW LIMITED',     reason:'posting links',         color:'#ff9944' },
+  { name:'RageQuit99',     msg:'what a complete numpty honestly this is painful to watch',       reason:'being toxic',           color:'#ff6666' },
+  { name:'AltAccount_2',   msg:'hello yes this is not a ban evade account totally legit viewer', reason:'ban evasion',           color:'#ffaa44' },
+];
+
+function rand(a)      { return a[Math.floor(Math.random()*a.length)]; }
+function randInt(a,b) { return Math.floor(Math.random()*(b-a+1))+a; }
+function escHtml(s)   { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addMsg(user, text, highlight, extra) {
+  const d = document.createElement('div');
+  d.className = 'msg' + (highlight?' highlight':'') + (extra?' '+extra:'');
+  let h = '';
+  if (user.badge==='mod') h += '<span class="badge badge-mod">MOD</span>';
+  else if (user.badge==='sub') h += '<span class="badge badge-sub">SUB</span>';
+  else if (user.badge==='vip') h += '<span class="badge badge-vip">VIP</span>';
+  else if (user.badge==='you') h += '<span class="badge badge-you">YOU</span>';
+  h += '<span class="username" style="color:'+user.color+';text-shadow:0 0 8px '+user.color+'44">'+escHtml(user.name)+'</span>';
+  h += '<span class="colon">:</span>';
+  h += '<span class="text" style="color:'+user.color+'">'+escHtml(text)+'</span>';
+  d.innerHTML = h;
+  messagesEl.appendChild(d); trimMessages(); doScroll();
+  return d;
+}
+
+function addSystem(text, raid) {
+  const d = document.createElement('div');
+  d.className = raid ? 'raid-msg' : 'system-msg';
+  d.textContent = text;
+  messagesEl.appendChild(d); trimMessages(); doScroll();
+}
+
+function addAlert(text, cls) {
+  const d = document.createElement('div');
+  d.className = 'alert-msg ' + cls;
+  d.textContent = text;
+  messagesEl.appendChild(d); trimMessages(); doScroll();
+}
+
+function showTyping(name, color) {
+  const d = document.createElement('div');
+  d.className = 'typing-indicator';
+  d.innerHTML = '<span class="typing-name" style="color:'+color+'">'+escHtml(name)+'</span><div class="typing-dots"><span></span><span></span><span></span></div><span class="typing-label">typing...</span>';
+  messagesEl.appendChild(d); doScroll();
+  return d;
+}
+
+function removeTyping(d) { if (d && d.parentNode) d.parentNode.removeChild(d); }
+function trimMessages()  { while (messagesEl.children.length > 250) messagesEl.removeChild(messagesEl.children[0]); }
+function doScroll()      { if (autoScroll) messagesEl.scrollTop = messagesEl.scrollHeight; else if(scrollBtn) scrollBtn.style.display='block'; }
+function scrollToBottom(){ autoScroll=true; messagesEl.scrollTop=messagesEl.scrollHeight; if(scrollBtn) scrollBtn.style.display='none'; }
+
+messagesEl.addEventListener('scroll', function() {
+  const atBottom = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 50;
+  if (atBottom) { autoScroll=true; if(scrollBtn) scrollBtn.style.display='none'; } else autoScroll=false;
+});
+
+// -- SMART REPLIES --
+const smartResponses = {
+  music:   ['W music taste','what song is this??','bro drop the playlist','this track is everything','who is this artist??','no skip fr','this slaps so hard'],
+  chill:   ['the vibes are immaculate','so cozy in here','this is therapy','zero bad vibes','living in this moment','the atmosphere is unreal'],
+  hype:    ['LETS GOOOOO','W W W','POG','FRFR','no cap','based','chat is eating good'],
+  question:['good question actually','asking the real questions','chat help him out','valid ngl','I need to know too'],
+  general: ['W streamer','love the stream','first time here not leaving','the nest never misses','cozy stream of the year','big fan of the vibe','absolute cinema'],
+};
+
+function getSmartReplies(msg) {
+  const m = msg.toLowerCase();
+  if (m.match(/song|music|track|beat|artist|playlist|album|banger/)) return smartResponses.music;
+  if (m.match(/chill|vibe|relax|cozy|calm|mood|atmosphere/)) return smartResponses.chill;
+  if (m.match(/hype|lets go|pog|fire|insane|crazy|wow|sick/)) return smartResponses.hype;
+  if (m.match(/how|what|why|when|where|who/)) return smartResponses.question;
+  return smartResponses.general;
+}
+
+async function triggerAIReplies(msg) {
+  isReplying = true;
+  if(inputEl) inputEl.disabled = true;
+  if(sendBtn) sendBtn.disabled = true;
+
+  const pool = getSmartReplies(msg);
+  const shuffled = [...users].sort(()=>Math.random()-0.5).slice(0, randInt(2,4));
+  const used = [];
+
+  for (let i = 0; i < shuffled.length; i++) {
+    const u = shuffled[i];
+    await new Promise(r => setTimeout(r, randInt(600,1400)*(i+1)));
+    const t = showTyping(u.name, u.color);
+    await new Promise(r => setTimeout(r, randInt(800,1600)));
+    removeTyping(t);
+    const available = pool.filter(r => !used.includes(r));
+    const reply = rand(available.length > 0 ? available : pool);
+    used.push(reply);
+    addMsg(u, reply, false, 'reply-msg');
+  }
+
+  isReplying = false;
+  if(inputEl) inputEl.disabled = false;
+  if(sendBtn) sendBtn.disabled = false;
+  if(inputEl) inputEl.focus();
+}
+
+// -- POLL SYSTEM --
+const POLL_COLORS = ['#00ff55','#00bfff','#ffdd44','#ff4081','#dd44ff'];
+let activePoll = null;
+
+function parsePoll(input) {
+  const parts = input.replace(/^!poll\s*/i, '').split('|').map(s => s.trim()).filter(Boolean);
+  if (parts.length < 3) return null;
+  return { question: parts[0], options: parts.slice(1), votes: parts.slice(1).map(() => 0), total: 0 };
+}
+
+function renderPoll(box, poll) {
+  const total = poll.total || 1;
+  let html = '<div class="poll-title">// POLL: ' + escHtml(poll.question) + ' //</div>';
+  poll.options.forEach(function(opt, i) {
+    const pct = Math.round((poll.votes[i] / total) * 100) || 0;
+    html += '<div class="poll-option"><div class="poll-option-label"><span>' + escHtml(opt) + '</span><span>' + poll.votes[i] + ' (' + pct + '%)</span></div><div class="poll-bar-bg"><div class="poll-bar" style="width:' + pct + '%;background:' + POLL_COLORS[i % POLL_COLORS.length] + '"></div></div></div>';
+  });
+  html += '<div class="poll-footer">closes in <span id="poll-timer">30</span>s</div>';
+  box.innerHTML = html;
+}
+
+function runPoll(poll) {
+  activePoll = poll;
+  const box = document.createElement('div');
+  box.className = 'poll-box';
+  renderPoll(box, poll);
+  messagesEl.appendChild(box); trimMessages(); doScroll();
+  addSystem('// POLL OPEN: ' + poll.question + ' //');
+
+  let timeLeft = 30;
+  const voteInterval = setInterval(function() {
+    if (!activePoll) { clearInterval(voteInterval); return; }
+    for (let i = 0; i < randInt(1,3); i++) {
+      const weights = poll.options.map(function() { return 1 + Math.random() * 2; });
+      const total = weights.reduce(function(a,b) { return a+b; }, 0);
+      let r = Math.random() * total;
+      for (let j = 0; j < weights.length; j++) { r -= weights[j]; if (r <= 0) { poll.votes[j]++; poll.total++; break; } }
+    }
+    if (Math.random() < 0.25 && !isReplying) {
+      const winIdx = poll.votes.indexOf(Math.max.apply(null, poll.votes));
+      addMsg(rand(users), rand([poll.options[winIdx] + ' easily', 'not even close lol', 'chat has decided', 'W poll actually']), false);
+    }
+    renderPoll(box, poll);
+  }, 1000);
+
+  const timerInterval = setInterval(function() {
+    timeLeft--;
+    const t = document.getElementById('poll-timer');
+    if (t) t.textContent = timeLeft;
+    if (timeLeft <= 0) clearInterval(timerInterval);
+  }, 1000);
+
+  setTimeout(function() {
+    clearInterval(voteInterval); clearInterval(timerInterval); activePoll = null;
+    const winIdx = poll.votes.indexOf(Math.max.apply(null, poll.votes));
+    const winner = poll.options[winIdx];
+    const winPct = Math.round((poll.votes[winIdx] / poll.total) * 100);
+    let html = '<div class="poll-title">// POLL CLOSED: ' + escHtml(poll.question) + ' //</div>';
+    poll.options.forEach(function(opt, i) {
+      const pct = Math.round((poll.votes[i] / poll.total) * 100) || 0;
+      html += '<div class="poll-option"><div class="poll-option-label"><span>' + (i===winIdx?'👑 ':'') + escHtml(opt) + '</span><span>' + poll.votes[i] + ' (' + pct + '%)</span></div><div class="poll-bar-bg"><div class="poll-bar" style="width:' + pct + '%;background:' + POLL_COLORS[i % POLL_COLORS.length] + '"></div></div></div>';
+    });
+    html += '<div class="poll-winner">// ' + escHtml(winner) + ' wins with ' + winPct + '% //</div>';
+    box.innerHTML = html;
+    addSystem('// RESULT: ' + winner + ' wins!');
+    setTimeout(function() { if(!isReplying) addMsg(rand(users), winner + ' diff no cap'); }, 600);
+    setTimeout(function() { if(!isReplying) addMsg(rand(users), 'chat chose correctly'); }, 1500);
+    doScroll();
+  }, 30000);
+}
+
+// -- SEND MESSAGE --
+function sendUserMsg() {
+  const val = inputEl.value.trim();
+  if (!val) return;
+  if (val.toLowerCase().startsWith('!poll')) {
+    inputEl.value = '';
+    const poll = parsePoll(val);
+    if (!poll) { addSystem('// Usage: !poll Question | Option1 | Option2 //'); return; }
+    if (activePoll) { addSystem('// A poll is already running! //'); return; }
+    runPoll(poll); return;
+  }
+  if (isReplying) return;
+  addMsg({ name:STREAMER, color:'#00ff55', badge:'you' }, val, true);
+  inputEl.value = '';
+  triggerAIReplies(val);
+}
+
+inputEl.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendUserMsg(); });
+
+// -- VOICE (BroadcastChannel) --
+try {
+  const vc = new BroadcastChannel('cd_voice_channel');
+  vc.onmessage = function(e) {
+    try {
+      const data = e.data;
+      if (!data.text || !data.text.trim()) return;
+      if (data.showText) addMsg({ name:STREAMER, color:'#00ff55', badge:'you' }, data.text.trim(), true);
+      isReplying = false;
+      if(inputEl) inputEl.disabled = false;
+      if(sendBtn) sendBtn.disabled = false;
+      triggerAIReplies(data.text.trim());
+    } catch(err) {}
+  };
+} catch(e) {}
+
+// -- POLL LISTENER FROM CONTROLS PANEL --
+// Clear any stale poll from previous session
+localStorage.removeItem('cd_poll_cmd');
+let lastPollTs = Date.now();
+try {
+  const pollBC = new BroadcastChannel('cd_poll_channel');
+  pollBC.onmessage = function(e) {
+    try {
+      const cmd = e.data.cmd;
+      if (!cmd) return;
+      const poll = parsePoll(cmd);
+      if (!poll || activePoll) return;
+      runPoll(poll);
+    } catch(err) {}
+  };
+} catch(e) {}
+
+// localStorage fallback for poll
+setInterval(function() {
+  try {
+    const raw = localStorage.getItem('cd_poll_cmd');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d.ts || d.ts === lastPollTs) return;
+    lastPollTs = d.ts;
+    const poll = parsePoll(d.cmd);
+    if (!poll || activePoll) return;
+    runPoll(poll);
+  } catch(e) {}
+}, 500);
+
+// -- GAME EVENT LISTENER --
+let lastEventTs = Date.now();
+try {
+  const ec = new BroadcastChannel('cd_event_channel');
+  ec.onmessage = function(e) { try { handleGameEvent(e.data.type, e.data.n); } catch(err) {} };
+} catch(e) {}
+
+localStorage.removeItem('cd_event');
+window.addEventListener('storage', function(e) {
+  if (e.key === 'cd_event' && e.newValue) {
+    try {
+      const d = JSON.parse(e.newValue);
+      if (d.ts === lastEventTs) return;
+      lastEventTs = d.ts;
+      handleGameEvent(d.type, d.n);
+    } catch(err) {}
+  }
+});
+
+setInterval(function() {
+  try {
+    const raw = localStorage.getItem('cd_event');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d.ts || d.ts === lastEventTs) return;
+    lastEventTs = d.ts;
+    handleGameEvent(d.type, d.n);
+  } catch(e) {}
+}, 500);
+
+function handleGameEvent(type, n) {
+  const labels = { death:'💀 Streamer died #'+n, kill:'⚔️ Kill! '+n+' total', mission:'✅ Mission complete #'+n, boss:'👑 Boss down #'+n };
+  if (labels[type]) addSystem('// ' + labels[type] + ' //');
+  const shuffled = [...users].sort(()=>Math.random()-0.5).slice(0, randInt(2,4));
+  shuffled.forEach(function(u, i) {
+    setTimeout(function() { if(!isReplying) addMsg(u, rand(chatLines), false, 'reply-msg'); }, randInt(500,1200)*(i+1));
+  });
+}
+
+// -- SNAKE RATTLE AUDIO --
+function playRattle() {
+  try {
+    // Uses Web Audio API to generate a rattle-like sound without needing a file
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.4, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.08));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.6;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+function speakSub(name) {
+  try {
+    const msg = new SpeechSynthesisUtterance(name + ' just joined the nest! Welcome!');
+    msg.rate = 0.95; msg.pitch = 1; msg.volume = 0.9;
+    window.speechSynthesis.speak(msg);
+  } catch(e) {}
+}
+
+// -- RANDOM EVENTS --
+function spawnRandomMsg() {
+  const u = rand(users);
+  addMsg(u, rand(chatLines), u.badge==='mod'||u.badge==='vip');
+}
+
+// Sub counter for facecam frame sync
+// Load persistent sub count so it carries over from gaming chat
+let subCount = parseInt(localStorage.getItem('nest_sub_count') || '0');
+let facecamBC = null;
+try { facecamBC = new BroadcastChannel('nest_subs'); } catch(e) {}
+
+function spawnSub() {
+  const name = rand(allUserNames);
+  const months = Math.random() < 0.3 ? ' (' + randInt(2,24) + ' months)' : '';
+  subCount++;
+  // Save persistently so count carries over between chats
+  try { localStorage.setItem('nest_sub_count', subCount); localStorage.setItem('nest_last_sub', name); localStorage.setItem('nest_sub_ts', Date.now()); } catch(e) {}
+  // Sync to facecam frame via BroadcastChannel
+  if (facecamBC) {
+    try { facecamBC.postMessage({ type:'sub', count:subCount, username:name }); } catch(e) {}
+  }
+  // Also via localStorage for Streamlabs compatibility
+  try { localStorage.setItem('nest_sub_event', JSON.stringify({ type:'sub', count:subCount, username:name, ts:Date.now() })); } catch(e) {}
+  playRattle();
+  addAlert('// ' + name + ' has joined the nest' + months + ' //', 'alert-sub');
+  setTimeout(function() { speakSub(name); }, 600);
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), 'welcome ' + name + '!'); }, randInt(800,1800));
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), 'new vibe added to the nest'); }, randInt(1500,3000));
+}
+
+function spawnGifted() {
+  const gifter = rand(gifters);
+  const count  = rand(giftCounts);
+  subCount += count;
+  try { localStorage.setItem('nest_sub_count', subCount); localStorage.setItem('nest_last_sub', gifter); } catch(e) {}
+  if (facecamBC) {
+    try { facecamBC.postMessage({ type:'sub', count:subCount, username:gifter + ' (x' + count + ')' }); } catch(e) {}
+  }
+  try { localStorage.setItem('nest_sub_event', JSON.stringify({ type:'sub', count:subCount, username:gifter + ' (x' + count + ')', ts:Date.now() })); } catch(e) {}
+  addAlert('// ' + gifter + ' gifted ' + count + ' sub' + (count>1?'s':'') + ' — legend //', 'alert-gifted');
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), 'W gifter fr'); }, randInt(600,1400));
+}
+
+function spawnBan() {
+  const incident = rand(incidents);
+  const rudeDiv = addMsg({ name:incident.name, color:incident.color, badge:null }, incident.msg);
+
+  const strikeDelay = randInt(1500, 3500);
+  setTimeout(function() {
+    rudeDiv.style.transition = 'opacity 0.4s';
+    rudeDiv.style.opacity = '0.3';
+    rudeDiv.style.textDecoration = 'line-through';
+    const tag = document.createElement('span');
+    tag.textContent = ' [deleted]';
+    tag.style.cssText = 'font-size:9px;color:rgba(255,80,80,0.5);font-style:italic;font-family:Orbitron,monospace;';
+    rudeDiv.appendChild(tag);
+  }, strikeDelay);
+
+  setTimeout(function() {
+    addAlert('// ' + incident.name + ' permanently banned — ' + incident.reason + ' //', 'alert-ban');
+  }, strikeDelay + randInt(800,1500));
+
+  // Mod reacts appropriately to the type of incident
+  const isLink = incident.reason === 'posting links' || incident.reason === 'self promotion';
+  const isBanEvade = incident.reason === 'ban evasion';
+  const modReactions = isLink
+    ? ['no links in chat please','link posting = instant ban','read the rules — no links','keep it clean folks']
+    : isBanEvade
+    ? ['ban evasion detected','back again are we 🙄','and banned again lol','mods always watching 👁']
+    : ['zero tolerance for that','keep it respectful in here','read the community guidelines','this is a chill space — act like it'];
+
+  const chatReactions = isLink
+    ? ['mods are on point','link spammer got cooked','they never learn lol','instant ban deserved']
+    : isBanEvade
+    ? ['ban evader caught lmaoo','mods said not today','the audacity 😂','they really thought they snuck back in']
+    : ['bro got cooked','deserved honestly','mods ate that one','they should have known better'];
+
+  if (modUsers.length) setTimeout(function() { addMsg(rand(modUsers), rand(modReactions)); }, strikeDelay + randInt(1000,2000));
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), rand(chatReactions)); }, strikeDelay + randInt(1800,3000));
+  if (Math.random() < 0.5) {
+    setTimeout(function() { if(!isReplying) addMsg(rand(users), rand(['mods on point today','nest protection active 🐍','W mods'])); }, strikeDelay + randInt(2500,4000));
+  }
+}
+
+function spawnTimeout() {
+  // Timeouts for lighter offences
+  const timeoutIncidents = [
+    { name:'LoudMouth_',    msg:'CAN EVERYONE HEAR ME HELLO HELLO HELLO HELLO HELLO',            reason:'60 seconds',  color:'#ffaa66' },
+    { name:'BackseatKing_', msg:'bro you should have gone left not right omg how did you miss that literally unplayable', reason:'5 minutes', color:'#ffaa66' },
+    { name:'ChatSpammer_',  msg:'Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog Pog',  reason:'10 minutes',  color:'#ffaa66' },
+    { name:'CapsLockKid_',  msg:'HELLO EVERYONE I AM NEW HERE CAN ANYONE SEE THIS MESSAGE??',    reason:'5 minutes',   color:'#ffaa66' },
+    { name:'RepeatBot_',    msg:'when is the giveaway when is the giveaway when is the giveaway when is the giveaway', reason:'10 minutes', color:'#ffaa66' },
+  ];
+
+  const incident = rand(timeoutIncidents);
+  const rudeDiv = addMsg({ name:incident.name, color:incident.color, badge:null }, incident.msg);
+
+  const strikeDelay = randInt(1200, 2800);
+  setTimeout(function() {
+    rudeDiv.style.transition = 'opacity 0.4s';
+    rudeDiv.style.opacity = '0.3';
+    rudeDiv.style.textDecoration = 'line-through';
+    const tag = document.createElement('span');
+    tag.textContent = ' [deleted]';
+    tag.style.cssText = 'font-size:9px;color:rgba(255,150,50,0.5);font-style:italic;font-family:Orbitron,monospace;';
+    rudeDiv.appendChild(tag);
+  }, strikeDelay);
+
+  setTimeout(function() {
+    addAlert('// ' + incident.name + ' timed out for ' + incident.reason + ' — calm it down //', 'alert-timeout');
+  }, strikeDelay + randInt(600,1200));
+
+  if (modUsers.length) setTimeout(function() { addMsg(rand(modUsers), rand(['take a breather','cool off time','slow down in chat','read the rules please'])); }, strikeDelay + randInt(800,1800));
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), rand(['they deserved that lol','mods said chill','timeout speedrun'])); }, strikeDelay + randInt(1500,2500));
+}
+
+function spawnBits() {
+  const name = rand(users).name;
+  const amt  = rand(bitAmounts);
+  addAlert('// ' + name + ' sent ' + amt.toLocaleString() + ' energy to the nest //', 'alert-bits');
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), (amt>=1000?'MASSIVE':'nice') + ' bits ' + name + '!'); }, randInt(600,1400));
+}
+
+function spawnRaid() {
+  const count = rand([82,115,47,230,64,310]);
+  const ch    = rand(['ViperDen_TV','CobraCast_','NightViper_','SerpentLive','RattleStream']);
+  addSystem('// INCURSION: ' + ch + ' raids with ' + count + ' operatives //', true);
+  setTimeout(function() { if(!isReplying) addMsg(rand(users), 'welcome raiders!!'); }, randInt(600,1200));
+}
+
+function updateViewers() {
+  viewerCount += randInt(-12,18);
+  if (viewerCount < 800) viewerCount = 800;
+}
+
+function scheduleNext() {
+  setTimeout(function() { if(!isReplying) spawnRandomMsg(); scheduleNext(); }, randInt(1500,4000));
+}
+
+function scheduleRandomEvent() {
+  const events = [
+    { fn:spawnSub,     w:12 },
+    { fn:spawnGifted,  w:10 },
+    { fn:spawnBan,     w:25 },
+    { fn:spawnTimeout, w:25 },
+    { fn:spawnBits,    w:18 },
+  ];
+  const total = events.reduce(function(s,e) { return s+e.w; }, 0);
+  let r = Math.random() * total;
+  for (const e of events) { r -= e.w; if (r <= 0) { e.fn(); break; } }
+  setTimeout(scheduleRandomEvent, randInt(25000,50000));
+}
+
+scheduleNext();
+setInterval(updateViewers, 5000);
+setTimeout(spawnRaid, 60000);
+setInterval(spawnRaid, 120000);
+setTimeout(scheduleRandomEvent, randInt(8000,15000));
+
+addMsg(rand(users), 'first in the nest');
+setTimeout(function() { addMsg(rand(users), 'the vibes are already immaculate'); }, 1200);
+setTimeout(function() { addMsg(rand(users), 'this playlist goes hard already'); }, 2500);
+setTimeout(function() { addMsg(rand(users), 'W stream W atmosphere'); }, 3800);
+setTimeout(function() { addSystem('// type !poll Question | A | B to run a poll //'); }, 5500);
+</script>
+</body>
+</html>
