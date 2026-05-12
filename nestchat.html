@@ -1274,7 +1274,7 @@ function spawnSub() {
     try { facecamBC.postMessage({ type:'sub', count:subCount, username:name }); } catch(e) {}
   }
   // Also via localStorage for Streamlabs compatibility
-  try { localStorage.setItem('nest_sub_event', JSON.stringify({ type:'sub', count:subCount, username:name, ts:Date.now() })); } catch(e) {}
+  try { const _subPayload = { type:'sub', count:subCount, username:name, ts:Date.now() }; localStorage.setItem('nest_sub_event', JSON.stringify(_subPayload)); localStorage.setItem('nest_sub_trigger', JSON.stringify(_subPayload)); } catch(e) {}
   playRattle();
   addAlert('// ' + name + ' has joined the nest' + months + ' //', 'alert-sub');
   setTimeout(function() { speakSub(name); }, 600);

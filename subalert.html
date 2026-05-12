@@ -1112,22 +1112,58 @@ setInterval(() => {
 const demoUsers = ['ViperKing99','ShadowSerpent','NightCobra77','RattleKing','CobraDen_','SnakeEyes88','PythonPro','NestGuard','VenomVault','MidnightBoa','StealthViper','GreenMamba_'];
 const demoMsgs  = ['just subscribed!','finally subbed!','been watching for weeks!','love this stream!','the nest is home now','new to the nest!','worth every penny!','reporting for duty!'];
 
-function scheduleDemoSub() {
-  const name = rand(demoUsers);
-  const t    = rand(tiers);
-  const msg  = rand(demoMsgs);
-  queueSub(name, t.l, t.c, msg);
-  // Also update shared localStorage so facecam + subgoal stay in sync
-  subCount++;
-  try { localStorage.setItem('nest_sub_count', subCount); localStorage.setItem('nest_last_sub', name); localStorage.setItem('nest_sub_event', JSON.stringify({ type:'sub', count:subCount, username:name, ts:Date.now() })); } catch(e) {}
-  setTimeout(scheduleDemoSub, 45000 + Math.random() * 45000);
+// Shared scheduler — checks localStorage for a trigger written by the chat
+// Both chat and subalert write to 'nest_sub_trigger' so they fire together
+let lastTriggerTs = 0;
+
+function checkSharedTrigger() {
+  try {
+    const raw = localStorage.getItem('nest_sub_trigger');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d.ts || d.ts === lastTriggerTs) return;
+    lastTriggerTs = d.ts;
+    const t = rand(tiers);
+    queueSub(d.username || rand(demoUsers), t.l, t.c, rand(demoMsgs));
+  } catch(e) {}
 }
 
-// Voices ready then start demo
+// Poll for shared trigger every 500ms
+setInterval(checkSharedTrigger, 500);
+
+// Fallback independent scheduler in case chat isn't open
+// Uses same interval range as chat (25-50s) so they stay roughly in sync
+function scheduleDemoSub() {
+  // Only fire if chat hasn't triggered recently (within last 10s)
+  try {
+    const raw = localStorage.getItem('nest_sub_trigger');
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.ts && Date.now() - d.ts < 10000) {
+        // Chat fired recently, skip our own fire
+        setTimeout(scheduleDemoSub, 25000 + Math.random() * 25000);
+        return;
+      }
+    }
+  } catch(e) {}
+
+  const name = rand(demoUsers);
+  const t    = rand(tiers);
+  subCount++;
+  const payload = { type:'sub', count:subCount, username:name, ts:Date.now() };
+  try { 
+    localStorage.setItem('nest_sub_trigger', JSON.stringify(payload));
+    localStorage.setItem('nest_sub_count', subCount);
+    localStorage.setItem('nest_last_sub', name);
+    localStorage.setItem('nest_sub_event', JSON.stringify(payload));
+  } catch(e) {}
+  setTimeout(scheduleDemoSub, 25000 + Math.random() * 25000);
+}
+
 function init() {
   const voices = window.speechSynthesis.getVoices();
-  if (voices.length) setTimeout(scheduleDemoSub, 5000);
-  else window.speechSynthesis.onvoiceschanged = () => setTimeout(scheduleDemoSub, 5000);
+  if (voices.length) setTimeout(scheduleDemoSub, 8000);
+  else window.speechSynthesis.onvoiceschanged = () => setTimeout(scheduleDemoSub, 8000);
 }
 init();
 </script>
