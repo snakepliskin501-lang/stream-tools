@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:460px; background:transparent; overflow:hidden; font-family:'Rajdhani',sans-serif; }
+
+.popup {
+position:relative; width:460px; background:#080f09;
+opacity:0; transform:translateY(20px) scale(0.95);
+transition:opacity 0.4s cubic-bezier(0.16,1,0.3,1), transform 0.4s cubic-bezier(0.16,1,0.3,1);
+overflow:hidden;
+}
+.popup.show { opacity:1; transform:translateY(0) scale(1); }
+.popup.hide { opacity:0; transform:translateY(12px) scale(0.97); transition:opacity 0.3s ease-in,transform 0.3s ease-in; }
+
+.border-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+.inner {
+position:relative; margin:14px;
+display:flex; align-items:center; gap:0; z-index:1;
+}
+
+.snake-col {
+width:80px; min-width:80px; height:80px;
+display:flex; align-items:center; justify-content:center;
+flex-shrink:0; border-right:1px solid #1a4d20;
+}
+.snake-col svg { width:62px; height:62px; }
+
+.info-col { padding:10px 14px; flex:1; min-width:0; }
+.top-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:3px; }
+.welcome-tag {
+font-family:'Orbitron',monospace; font-size:8px; font-weight:700;
+letter-spacing:2px; color:#00cc44; text-transform:uppercase;
+}
+.tier-pill {
+font-size:9px; font-weight:700; letter-spacing:1px;
+padding:2px 8px; border-radius:3px; text-transform:uppercase;
+font-family:'Orbitron',monospace;
+}
+.t1 { background:#0a1e0c; color:#6dcc88; border:1px solid #1e5a24; }
+.t2 { background:#0a141e; color:#6db0cc; border:1px solid #1e3a5a; }
+.t3 { background:#1e140a; color:#cca06d; border:1px solid #5a3a1a; }
+.username {
+font-family:'Orbitron',monospace; font-size:15px; font-weight:700;
+color:#c8f0d4; letter-spacing:0.5px;
+white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+text-shadow:0 0 8px rgba(0,255,80,0.3);
+}
+.sub-msg { font-size:12px; color:#2a6a32; margin-top:2px; font-weight:600; letter-spacing:0.5px; }
+.nest-line {
+margin-top:5px; font-family:'Orbitron',monospace;
+font-size:8px; font-weight:900; color:#1a5a22; letter-spacing:2.5px; text-transform:uppercase;
+}
+.nest-line span { color:#00ff55; text-shadow:0 0 6px rgba(0,255,80,0.5); }
+
+.eye { position:absolute; width:16px; height:10px; pointer-events:none; z-index:2; }
+.eye-inner {
+width:100%; height:100%; background:#00ff55; border-radius:50%;
+box-shadow:0 0 8px 2px #00ff55, 0 0 18px 4px rgba(0,255,80,0.4);
+animation:eye-pulse 2.6s ease-in-out infinite; position:relative;
+}
+.eye-inner::after {
+content:''; position:absolute; width:5px; height:8px;
+background:#000; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%);
+}
+@keyframes eye-pulse {
+0%,100%{ box-shadow:0 0 8px 2px #00ff55, 0 0 18px 4px rgba(0,255,80,0.4); }
+50%    { box-shadow:0 0 14px 5px #00ff55, 0 0 30px 8px rgba(0,255,80,0.6); }
+}
+.eye.tl { top:6px; left:6px; }
+.eye.tr { top:6px; right:6px; }
+.eye.bl { bottom:6px; left:6px; }
+.eye.br { bottom:6px; right:6px; }
+
+.p-bar {
+position:absolute; bottom:0; left:0;
+height:2px; background:#00ff55;
+width:100%; transform-origin:left; transform:scaleX(0);
+transition:transform linear; z-index:3;
+}
+</style>
+</head>
+<body>
+
+<div class="popup" id="popup">
+  <svg class="border-svg" viewBox="0 0 460 108" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="sc" x="0" y="0" width="18" height="16" patternUnits="userSpaceOnUse">
+        <ellipse cx="9"  cy="4"  rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="0"  cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="18" cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+      </pattern>
+    </defs>
+    <rect x="0"   y="0"   width="460" height="14" fill="url(#sc)"/>
+    <rect x="0"   y="94"  width="460" height="14" fill="url(#sc)"/>
+    <rect x="0"   y="14"  width="14"  height="80" fill="url(#sc)"/>
+    <rect x="446" y="14"  width="14"  height="80" fill="url(#sc)"/>
+    <rect x="14" y="14" width="432" height="80" fill="none" stroke="#00ff55" stroke-width="0.8" stroke-opacity="0.55"/>
+    <rect x="1" y="1" width="458" height="106" fill="none" stroke="#00bb44" stroke-width="0.8" stroke-opacity="0.4"/>
+    <g stroke="#00ff55" stroke-width="2" fill="none" stroke-linecap="round">
+      <polyline points="6,14  6,6   14,6"/>
+      <polyline points="446,6 454,6 454,14"/>
+      <polyline points="6,94  6,102  14,102"/>
+      <polyline points="454,94 454,102 446,102"/>
+    </g>
+    <g stroke="#00cc44" stroke-width="0.7" opacity="0.4">
+      <line x1="230" y1="0" x2="230" y2="8"/>
+      <line x1="230" y1="100" x2="230" y2="108"/>
+    </g>
+  </svg>
+
+  <div class="eye tl"><div class="eye-inner" style="animation-delay:0s"></div></div>
+  <div class="eye tr"><div class="eye-inner" style="animation-delay:0.7s"></div></div>
+  <div class="eye bl"><div class="eye-inner" style="animation-delay:1.4s"></div></div>
+  <div class="eye br"><div class="eye-inner" style="animation-delay:2.1s"></div></div>
+
+  <div class="inner">
+    <div class="snake-col">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="bg2" cx="40%" cy="35%">
+            <stop offset="0%" stop-color="#4de87a"/>
+            <stop offset="100%" stop-color="#1a6e35"/>
+          </radialGradient>
+          <radialGradient id="eg2" cx="35%" cy="35%">
+            <stop offset="0%" stop-color="#ffee00"/>
+            <stop offset="100%" stop-color="#c09000"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="50" cy="62" rx="36" ry="16" fill="#1a6e35" opacity="0.7"/>
+        <path d="M18 60 Q28 50 38 58 Q48 66 58 58 Q68 50 78 58 Q83 62 82 66" fill="none" stroke="#2a8a48" stroke-width="10" stroke-linecap="round"/>
+        <path d="M18 60 Q28 50 38 58 Q48 66 58 58 Q68 50 78 58 Q83 62 82 66" fill="none" stroke="url(#bg2)" stroke-width="7" stroke-linecap="round"/>
+        <path d="M20 62 Q30 53 40 60 Q50 67 60 60 Q70 53 78 60 Q81 63 80 66" fill="none" stroke="#a0f0b8" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+        <ellipse cx="50" cy="36" rx="14" ry="12" fill="url(#bg2)"/>
+        <ellipse cx="50" cy="30" rx="7" ry="5" fill="#2a9a4a"/>
+        <ellipse cx="46" cy="34" rx="4" ry="4" fill="url(#eg2)"/>
+        <ellipse cx="54" cy="34" rx="4" ry="4" fill="url(#eg2)"/>
+        <ellipse cx="46" cy="34" rx="2.5" ry="2.5" fill="#1a1000"/>
+        <ellipse cx="54" cy="34" rx="2.5" ry="2.5" fill="#1a1000"/>
+        <ellipse cx="45" cy="33" rx="1" ry="1" fill="#fff"/>
+        <ellipse cx="53" cy="33" rx="1" ry="1" fill="#fff"/>
+        <path d="M50 32 L50 40 M50 40 L45.5 44 M50 40 L54.5 44" fill="none" stroke="#ff3355" stroke-width="1.5" stroke-linecap="round" id="tongue"/>
+        <path d="M22 68 Q16 76 12 82 Q10 86 9 84" fill="none" stroke="url(#bg2)" stroke-width="5" stroke-linecap="round"/>
+        <ellipse cx="8" cy="85" rx="3" ry="2" fill="#c08030"/>
+        <ellipse cx="7" cy="87" rx="2.5" ry="1.5" fill="#a06020"/>
+      </svg>
+    </div>
+    <div class="info-col">
+      <div class="top-row">
+        <div class="welcome-tag">Welcome to the Nest</div>
+        <div class="tier-pill t1" id="tier-pill">Tier 1</div>
+      </div>
+      <div class="username" id="uname">ViperKing99</div>
+      <div class="sub-msg" id="submsg">just subscribed!</div>
+      <div class="nest-line">The <span>Nest</span> grows</div>
+    </div>
+  </div>
+
+  <div class="p-bar" id="p-bar"></div>
+</div>
+
+<script>
+const SHOW_MS = 8000;
+
+let queue     = [];
+let isShowing = false;
+let lastSubTs = 0;
+let subCount  = 0;
+
+const popup   = document.getElementById('popup');
+const unameEl = document.getElementById('uname');
+const msgEl   = document.getElementById('submsg');
+const tierEl  = document.getElementById('tier-pill');
+const pBar    = document.getElementById('p-bar');
+const tongue  = document.getElementById('tongue');
+
+const tiers = [
+  {l:'Tier 1',c:'t1'},{l:'Tier 1',c:'t1'},{l:'Tier 1',c:'t1'},
+  {l:'Tier 2',c:'t2'},{l:'Tier 3',c:'t3'}
+];
+
+const msgs = [
+  "just subscribed!","can't miss the nest!","finally subbed!",
+  "been watching for weeks!","love this stream!","reporting for duty!",
+  "worth every penny!","the nest is home now","new to the nest!",
+  "hyped to be here!"
+];
+
+function rand(a) { return a[Math.floor(Math.random()*a.length)]; }
+
+// Snake rattle via Web Audio (no file needed)
+function playRattle() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.5, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random()*2-1) * Math.exp(-i/(ctx.sampleRate*0.1));
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    gain.gain.value = 0.7;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+function speak(username) {
+  try {
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(username + ' just subscribed! Welcome to the Nest!');
+    utt.rate = 1.0; utt.pitch = 1.1; utt.volume = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Microsoft')))
+      || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    if (preferred) utt.voice = preferred;
+    window.speechSynthesis.speak(utt);
+  } catch(e) {}
+}
+
+function queueSub(username, tierLabel, tierCls, subMsg) {
+  queue.push({ username, tierLabel, tierCls, subMsg });
+  if (!isShowing) processQueue();
+}
+
+function processQueue() {
+  if (queue.length === 0) { isShowing = false; return; }
+  isShowing = true;
+  const item = queue.shift();
+  showAlert(item.username, item.tierLabel, item.tierCls, item.subMsg);
+}
+
+function showAlert(u, tierLabel, tierCls, subMsg) {
+  unameEl.textContent = u;
+  msgEl.textContent   = subMsg;
+  tierEl.textContent  = tierLabel;
+  tierEl.className    = 'tier-pill ' + tierCls;
+
+  playRattle();
+
+  popup.classList.remove('hide');
+  popup.classList.add('show');
+
+  pBar.style.transition = 'none';
+  pBar.style.transform  = 'scaleX(1)';
+  void pBar.offsetWidth;
+  pBar.style.transition = 'transform ' + SHOW_MS + 'ms linear';
+  pBar.style.transform  = 'scaleX(0)';
+
+  setTimeout(() => speak(u), 800);
+
+  // Broadcast to facecam
+  try {
+    subCount++;
+    const bc = new BroadcastChannel('nest_subs');
+    bc.postMessage({ type:'sub', count:subCount, username:u });
+    bc.close();
+  } catch(e) {}
+  try { localStorage.setItem('nest_sub_event', JSON.stringify({ type:'sub', count:subCount, username:u, ts:Date.now() })); } catch(e) {}
+
+  setTimeout(() => {
+    popup.classList.remove('show');
+    popup.classList.add('hide');
+    setTimeout(processQueue, 800);
+  }, SHOW_MS);
+}
+
+// Listen for subs from chat via BroadcastChannel
+try {
+  const bc = new BroadcastChannel('nest_subs');
+  bc.onmessage = function(e) {
+    if (e.data && e.data.type === 'sub' && e.data.username) {
+      const t = rand(tiers);
+      queueSub(e.data.username, t.l, t.c, rand(msgs));
+    }
+  };
+} catch(e) {}
+
+// localStorage fallback
+setInterval(function() {
+  try {
+    const raw = localStorage.getItem('nest_sub_event');
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (!d.ts || d.ts === lastSubTs) return;
+    lastSubTs = d.ts;
+    const t = rand(tiers);
+    queueSub(d.username || 'Anonymous', t.l, t.c, rand(msgs));
+  } catch(e) {}
+}, 500);
+
+// Tongue flicker
+setInterval(() => {
+  tongue.style.opacity = '0';
+  setTimeout(() => tongue.style.opacity = '1', 140);
+  setTimeout(() => { tongue.style.opacity = '0'; setTimeout(() => tongue.style.opacity = '1', 90); }, 320);
+}, 2800);
+
+// Voices ready
+if (window.speechSynthesis.getVoices().length === 0) {
+  window.speechSynthesis.onvoiceschanged = function() {};
+}
+</script>
+</body>
+</html>
