@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:660px; height:400px; overflow:hidden; background:transparent; }
+  .frame { position:relative; width:660px; height:400px; background:transparent; }
+
+  /* 4 solid edge strips only — centre is 100% empty */
+  .edge { position:absolute; background:#080f09; }
+  .edge-top    { top:0;    left:0;   right:0;  height:40px; }
+  .edge-left   { top:40px; left:0;   width:40px; bottom:52px; }
+  .edge-right  { top:40px; right:0;  width:40px; bottom:52px; }
+
+  /* SVG overlaid for lines, brackets, eyes, ticks */
+  .border-svg { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+
+  /* Smoke rising from bottom edge */
+  .smoke { position:absolute; bottom:52px; left:0; right:0; height:80px; pointer-events:none; overflow:hidden; }
+  .smoke-particle {
+    position:absolute; border-radius:50%;
+    background:radial-gradient(circle, rgba(0,255,80,0.18) 0%, transparent 70%);
+    animation:drift linear infinite; opacity:0;
+  }
+  @keyframes drift {
+    0%   { transform:translateY(0) scale(1);    opacity:0; }
+    15%  { opacity:0.7; }
+    85%  { opacity:0.2; }
+    100% { transform:translateY(-80px) scale(1.8); opacity:0; }
+  }
+
+  /* Pulse ring — inner cam edge only */
+  .pulse-ring {
+    position:absolute; top:40px; left:40px; right:40px; bottom:52px;
+    border:1px solid rgba(0,255,80,0); pointer-events:none;
+    animation:ring-pulse 3.5s ease-in-out infinite;
+  }
+  @keyframes ring-pulse {
+    0%,100%{ border-color:rgba(0,255,80,0); }
+    50%    { border-color:rgba(0,255,80,0.35); }
+  }
+
+  /* Eyes */
+  .eye { position:absolute; width:20px; height:12px; pointer-events:none; }
+  .eye-inner {
+    width:100%; height:100%; background:#00ff55; border-radius:50%;
+    box-shadow:0 0 10px 3px #00ff55, 0 0 22px 6px rgba(0,255,80,0.45);
+    animation:eye-pulse 2.6s ease-in-out infinite; position:relative;
+  }
+  .eye-inner::after {
+    content:''; position:absolute; width:6px; height:10px;
+    background:#000; border-radius:50%; top:50%; left:50%; transform:translate(-50%,-50%);
+  }
+  @keyframes eye-pulse {
+    0%,100%{ box-shadow:0 0 10px 3px #00ff55, 0 0 22px 6px rgba(0,255,80,0.45); }
+    50%    { box-shadow:0 0 18px 7px #00ff55, 0 0 38px 12px rgba(0,255,80,0.65); }
+  }
+  .eye.tl { top:14px;   left:14px; }
+  .eye.tr { top:14px;   right:14px; }
+  .eye.bl { bottom:62px; left:14px; }
+  .eye.br { bottom:62px; right:14px; }
+
+  /* Info bar */
+  .info-bar {
+    position:absolute; bottom:0; left:0; right:0; height:52px;
+    background:#080f09; border-top:1px solid #1a4d20;
+    display:flex; align-items:center; padding:0 18px;
+  }
+  .info-segment {
+    display:flex; align-items:center; padding:0 16px; height:100%;
+    border-right:1px solid #1a4d20; gap:6px; flex-shrink:0;
+  }
+  .info-segment:first-child { padding-left:4px; }
+  .info-segment.last-seg    { border-right:none; flex:1; }
+  .seg-label {
+    font-family:'Rajdhani',sans-serif; font-size:9px; font-weight:600;
+    letter-spacing:1.5px; color:#2a6a32; text-transform:uppercase; line-height:1.1;
+  }
+  .seg-value {
+    font-family:'Orbitron',monospace; font-size:22px; font-weight:900;
+    color:#00ff55; text-shadow:0 0 10px rgba(0,255,80,0.5); line-height:1;
+  }
+  .seg-value.timer { font-size:18px; letter-spacing:2px; }
+  .last-sub-name {
+    font-family:'Orbitron',monospace; font-size:16px; font-weight:700;
+    color:#c8f0d4; text-shadow:0 0 8px rgba(0,255,80,0.3);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .name-flash { animation:nf 0.3s ease; }
+  @keyframes nf { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  /* Top name tag */
+  .name-tag {
+    position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    font-family:'Orbitron',monospace; font-size:9px; font-weight:700;
+    letter-spacing:3px; color:#00cc44; text-transform:uppercase;
+    text-shadow:0 0 8px rgba(0,255,80,0.5); pointer-events:none; white-space:nowrap;
+    animation:flicker 5s ease-in-out infinite;
+  }
+  @keyframes flicker {
+    0%,100%{opacity:1} 91%{opacity:1} 92%{opacity:0.3} 93%{opacity:1} 95%{opacity:0.5} 96%{opacity:1}
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+
+  <!-- Edge strips — NO centre element whatsoever -->
+  <div class="edge edge-top"></div>
+  <div class="edge edge-left"></div>
+  <div class="edge edge-right"></div>
+
+  <!-- SVG: scale texture on edge strips + decorative lines — nothing drawn in the 580x308 centre -->
+  <svg class="border-svg" viewBox="0 0 660 400" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="sc" x="0" y="0" width="18" height="16" patternUnits="userSpaceOnUse">
+        <ellipse cx="9"  cy="4"  rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="0"  cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+        <ellipse cx="18" cy="12" rx="8" ry="5" fill="none" stroke="rgba(0,200,60,0.28)" stroke-width="0.7"/>
+      </pattern>
+    </defs>
+
+    <!-- Scale texture: 4 edge strips only, explicitly bounded -->
+    <rect x="0"   y="0"   width="660" height="40"  fill="url(#sc)"/>
+    <rect x="0"   y="40"  width="40"  height="308" fill="url(#sc)"/>
+    <rect x="620" y="40"  width="40"  height="308" fill="url(#sc)"/>
+
+    <!-- Inner cam edge line -->
+    <rect x="40" y="40" width="580" height="308" fill="none" stroke="#00ff55" stroke-width="1" stroke-opacity="0.6"/>
+
+    <!-- Outer frame edge -->
+    <rect x="1" y="1" width="658" height="346" fill="none" stroke="#00bb44" stroke-width="1" stroke-opacity="0.4"/>
+
+    <!-- Corner bracket accents -->
+    <g stroke="#00ff55" stroke-width="2.5" fill="none" stroke-linecap="round">
+      <polyline points="14,40  14,14  40,14"/>
+      <polyline points="620,14 646,14 646,40"/>
+      <polyline points="14,308 14,348 40,348"/>
+      <polyline points="646,308 646,348 620,348"/>
+    </g>
+
+    <!-- Mid edge ticks -->
+    <g stroke="#00cc44" stroke-width="0.8" opacity="0.45">
+      <line x1="330" y1="0"   x2="330" y2="14"/>
+      <line x1="0"   y1="194" x2="14"  y2="194"/>
+      <line x1="646" y1="194" x2="660" y2="194"/>
+    </g>
+
+    <!-- Info bar top line -->
+    <line x1="0" y1="348" x2="660" y2="348" stroke="#00ff55" stroke-width="0.8" stroke-opacity="0.5"/>
+  </svg>
+
+  <!-- Smoke along bottom of cam area -->
+  <div class="smoke" id="smoke"></div>
+
+  <!-- Pulse ring -->
+  <div class="pulse-ring"></div>
+
+  <!-- Corner eyes -->
+  <div class="eye tl"><div class="eye-inner" style="animation-delay:0s"></div></div>
+  <div class="eye tr"><div class="eye-inner" style="animation-delay:0.65s"></div></div>
+  <div class="eye bl"><div class="eye-inner" style="animation-delay:1.3s"></div></div>
+  <div class="eye br"><div class="eye-inner" style="animation-delay:1.95s"></div></div>
+
+  <div class="name-tag">Welcome to the Nest</div>
+
+  <!-- Info bar -->
+  <div class="info-bar">
+    <div class="info-segment">
+      <div>
+        <div class="seg-label">Subs</div>
+        <div class="seg-value" id="sub-count">0</div>
+      </div>
+    </div>
+    <div class="info-segment">
+      <div>
+        <div class="seg-label">Time</div>
+        <div class="seg-value timer" id="timer">0:00</div>
+      </div>
+    </div>
+    <div class="info-segment last-seg">
+      <div class="seg-label" style="margin-right:10px">LAST<br>SUB:</div>
+      <div class="last-sub-name" id="last-sub">—</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Smoke
+  const smokeEl = document.getElementById('smoke');
+  ['8%','20%','35%','50%','65%','80%','92%'].forEach(x => {
+    const d = document.createElement('div');
+    d.className = 'smoke-particle';
+    const size = 40 + Math.random() * 60;
+    d.style.cssText = `left:${x};bottom:0;width:${size}px;height:${size}px;animation-duration:${3+Math.random()*3}s;animation-delay:${Math.random()*5}s;`;
+    smokeEl.appendChild(d);
+  });
+
+  // Timer
+  let secs = 0;
+  const timerEl = document.getElementById('timer');
+  setInterval(() => {
+    secs++;
+    timerEl.textContent = Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
+  }, 1000);
+
+  // BroadcastChannel sync with popup
+  let subCount = 0;
+  const subCountEl = document.getElementById('sub-count');
+  const lastSubEl  = document.getElementById('last-sub');
+  // BroadcastChannel - works when both files open in same browser
+  let lastSubTs = 0;
+  try {
+    const bc = new BroadcastChannel('nest_subs');
+    bc.onmessage = e => {
+      if (e.data.type === 'sub') {
+        subCount = e.data.count;
+        subCountEl.textContent = subCount;
+        if (e.data.username) {
+          lastSubEl.textContent = e.data.username;
+          lastSubEl.classList.remove('name-flash');
+          void lastSubEl.offsetWidth;
+          lastSubEl.classList.add('name-flash');
+        }
+      }
+    };
+  } catch(e) {}
+
+  // localStorage fallback - works across Streamlabs browser sources
+  setInterval(() => {
+    try {
+      const raw = localStorage.getItem('nest_sub_event');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d.ts || d.ts === lastSubTs) return;
+      lastSubTs = d.ts;
+      subCount = d.count;
+      subCountEl.textContent = subCount;
+      if (d.username) {
+        lastSubEl.textContent = d.username;
+        lastSubEl.classList.remove('name-flash');
+        void lastSubEl.offsetWidth;
+        lastSubEl.classList.add('name-flash');
+      }
+    } catch(e) {}
+  }, 500);
+
+  // Poll localStorage every 500ms for sub updates
+  setInterval(function() {
+    try {
+      const raw = localStorage.getItem('nest_sub_event');
+      if (!raw) return;
+      const d = JSON.parse(raw);
+      if (!d.ts || d.ts === lastSubTs) return;
+      lastSubTs = d.ts;
+      subCount = d.count || subCount;
+      subCountEl.textContent = subCount;
+      if (d.username) {
+        lastSubEl.textContent = d.username;
+        lastSubEl.classList.remove('name-flash');
+        void lastSubEl.offsetWidth;
+        lastSubEl.classList.add('name-flash');
+      }
+    } catch(e) {}
+  }, 500);
+</script>
+</body>
+</html>
